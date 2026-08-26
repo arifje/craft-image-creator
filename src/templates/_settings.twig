@@ -35,17 +35,6 @@
     showAllOption: false,
 }) }}
 
-{{ forms.textareaField({
-    label: 'Image prompt'|t('craft-image-creator'),
-    instructions: 'The base instruction for every generated image. Enter text or an environment variable such as $IMAGE_CREATOR_PROMPT.'|t('craft-image-creator'),
-    id: 'prompt',
-    name: 'prompt',
-    value: settings.prompt,
-    rows: 6,
-    maxlength: 20000,
-    placeholder: '$IMAGE_CREATOR_PROMPT',
-}) }}
-
 {{ forms.selectField({
     label: 'Default provider'|t('craft-image-creator'),
     instructions: 'The provider selected first in the creation modal.'|t('craft-image-creator'),

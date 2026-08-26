@@ -30,7 +30,7 @@ $read = static function(string $path) use (&$failures): string {
 $composerJson = json_decode($read($root . '/composer.json'), true);
 $assert(is_array($composerJson), 'composer.json must contain valid JSON.');
 if (is_array($composerJson)) {
-    $assert(($composerJson['version'] ?? null) === '1.0.2', 'Composer package version must be 1.0.2.');
+    $assert(($composerJson['version'] ?? null) === '1.0.3', 'Composer package version must be 1.0.3.');
     $assert(
         ($composerJson['extra']['handle'] ?? null) === 'craft-image-creator',
         'The Craft plugin handle must remain craft-image-creator.'
@@ -40,6 +40,19 @@ if (is_array($composerJson)) {
     $assert(str_contains($craftConstraint, '^4.4.0'), 'Craft 4.4 must remain supported.');
     $assert(str_contains($craftConstraint, '^5.0.0'), 'Craft 5 must remain supported.');
 }
+
+$packageJson = json_decode($read($root . '/package.json'), true);
+$packageLock = json_decode($read($root . '/package-lock.json'), true);
+$assert(
+    is_array($packageJson) && ($packageJson['version'] ?? null) === '1.0.3',
+    'JavaScript package version must be 1.0.3.'
+);
+$assert(
+    is_array($packageLock) &&
+    ($packageLock['version'] ?? null) === '1.0.3' &&
+    ($packageLock['packages']['']['version'] ?? null) === '1.0.3',
+    'JavaScript lockfile versions must be 1.0.3.'
+);
 
 $generatorSource = $read($root . '/src/services/ImageGenerator.php');
 foreach (['16:9', '9:16', '4:5', '1:1'] as $ratio) {
@@ -67,8 +80,8 @@ foreach (
 }
 
 $assert(
-    preg_match("/forms\\.textareaField\\(\\{[^}]*name:\\s*'prompt'/s", $settingsTemplate) === 1,
-    'The prompt setting must use a textarea field.'
+    preg_match("/forms\\.textareaField\\(\\{[^}]*name:\\s*['\"]prompt['\"]/s", $settingsTemplate) === 0,
+    'The runtime image prompt must not remain in project-config-backed plugin settings.'
 );
 $assert(
     preg_match("/forms\\.selectField\\(\\{[^}]*name:\\s*'standaloneVolumeUid'/s", $settingsTemplate) === 1,
@@ -101,6 +114,17 @@ $controllerSource = $read($root . '/src/controllers/CreatorController.php');
 $jobSource = $read($root . '/src/jobs/GenerateImage.php');
 $requestSource = $read($root . '/src/services/GenerationRequests.php');
 $pluginSource = $read($root . '/src/Plugin.php');
+$promptControllerSource = $read($root . '/src/controllers/PromptController.php');
+$promptsSource = $read($root . '/src/services/Prompts.php');
+$promptUtilitySource = $read($root . '/src/utilities/ImagePrompt.php');
+$promptUtilityTemplate = $read($root . '/src/templates/_utilities/image-prompt.twig');
+$tableSource = $read($root . '/src/db/Table.php');
+$installMigrationSource = $read($root . '/src/migrations/Install.php');
+$promptMigrationFiles = glob($root . '/src/migrations/m*_create_prompt*.php') ?: [];
+$promptMigrationSource = '';
+foreach ($promptMigrationFiles as $promptMigrationFile) {
+    $promptMigrationSource .= "\n" . $read($promptMigrationFile);
+}
 $assetCreatorSource = $read($root . '/src/services/AssetCreator.php');
 $modalSource = $read($root . '/resources/js/modal.js');
 $standaloneSource = $read($root . '/resources/js/standalone.js');
@@ -110,6 +134,50 @@ $mainSource = $read($root . '/resources/js/main.js');
 $cssSource = $read($root . '/resources/css/image-creator.css');
 $distJs = $read($root . '/src/web/assets/dist/image-creator.js');
 $distCss = $read($root . '/src/web/assets/dist/image-creator.css');
+
+$assert(
+    str_contains($pluginSource, "public string \$schemaVersion = '1.0.1'"),
+    'The plugin schema version must be 1.0.1 for the prompt-storage migration.'
+);
+$assert(
+    str_contains($pluginSource, 'EVENT_REGISTER_UTILITIES') &&
+    str_contains($pluginSource, 'EVENT_REGISTER_UTILITY_TYPES') &&
+    str_contains($pluginSource, 'ImagePrompt::class'),
+    'The prompt utility must be registered with compatible Craft 4 and Craft 5 utility events.'
+);
+$assert(
+    str_contains($promptUtilitySource, "return 'image-creator-prompt'") &&
+    preg_match("/forms\\.textareaField\\(\\{[^}]*name:\\s*['\"]prompt['\"]/s", $promptUtilityTemplate) === 1 &&
+    str_contains($promptUtilityTemplate, "actionInput('craft-image-creator/prompt/save')") &&
+    str_contains($promptUtilityTemplate, 'csrfInput()'),
+    'The Image Creator Prompt utility must submit a CSRF-protected textarea to its save action.'
+);
+$assert(
+    str_contains($promptControllerSource, 'requireCpRequest()') &&
+    str_contains($promptControllerSource, 'requirePostRequest()') &&
+    str_contains($promptControllerSource, 'checkAuthorization(ImagePrompt::class)'),
+    'The prompt save action must require an authorized control-panel POST request.'
+);
+$assert(
+    str_contains($pluginSource, "'prompts' => Prompts::class") &&
+    str_contains($promptsSource, 'function getPrompt(') &&
+    str_contains($promptsSource, 'function save(') &&
+    str_contains($tableSource, 'craftimagecreator_prompt') &&
+    str_contains($installMigrationSource, 'createTable(') &&
+    str_contains($installMigrationSource, 'prompt') &&
+    count($promptMigrationFiles) === 1 &&
+    str_contains($promptMigrationSource, 'createTable(') &&
+    str_contains($promptMigrationSource, 'getConfigFromFile(') &&
+    str_contains($promptMigrationSource, 'App::parseEnv(') &&
+    !str_contains($promptMigrationSource, 'extends Install') &&
+    !str_contains($promptMigrationSource, 'Plugin::getInstance()'),
+    'The mutable prompt must be stored by the Prompts service and created for fresh installs and upgrades.'
+);
+$assert(
+    str_contains($generatorSource, '->prompts->getPrompt()') &&
+    !str_contains($generatorSource, 'getSettings()->getResolvedPrompt()'),
+    'New image generation requests must read the database-backed runtime prompt service.'
+);
 
 $assert(str_contains($jobSource, 'extends BaseJob'), 'Image generation must run as a Craft queue job.');
 $assert(str_contains($controllerSource, 'Queue::push('), 'Generation requests must be pushed to Craft’s queue.');

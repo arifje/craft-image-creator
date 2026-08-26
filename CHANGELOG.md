@@ -1,5 +1,11 @@
 # Release Notes
 
+## 1.0.3 - 2026-08-26
+
+- Moves the base image prompt to **Utilities -> Image Creator Prompt**, where authorized users can update it directly in each environment without deploying plugin settings or project config.
+- Adds database-backed prompt storage and migrates the previously effective prompt once during the upgrade, including resolved legacy environment-variable values.
+- Secures prompt updates with Craft's native Utility permission and a separately authorized, CSRF-protected save endpoint on both Craft 4 and Craft 5.
+
 ## 1.0.2 - 2026-08-26
 
 - Moves the standalone Image Creator destination from the creation page to a single **Storage location** filesystem setting and saves generated Assets to the root of its backing volume.

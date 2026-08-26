@@ -1,0 +1,23 @@
+{% import '_includes/forms.twig' as forms %}
+
+<form class="utility" method="post" accept-charset="UTF-8">
+    {{ actionInput('craft-image-creator/prompt/save') }}
+    {{ csrfInput() }}
+    {{ redirectInput('utilities/image-creator-prompt') }}
+
+    {{ forms.textareaField({
+        label: 'Image prompt'|t('craft-image-creator'),
+        instructions: 'The base instruction used for every newly generated image. It is stored in this environment, so it can be changed without deploying project config.'|t('craft-image-creator'),
+        id: 'prompt',
+        name: 'prompt',
+        value: prompt.prompt,
+        errors: prompt.getErrors('prompt'),
+        rows: 12,
+        maxlength: 20000,
+        required: true,
+    }) }}
+
+    <div class="buttons">
+        <button type="submit" class="btn submit">{{ 'Save prompt'|t('craft-image-creator') }}</button>
+    </div>
+</form>

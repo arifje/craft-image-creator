@@ -10,7 +10,9 @@ use arifje\craftimagecreator\services\ContextFields;
 use arifje\craftimagecreator\services\GeneratedResults;
 use arifje\craftimagecreator\services\GenerationRequests;
 use arifje\craftimagecreator\services\ImageGenerator;
+use arifje\craftimagecreator\services\Prompts;
 use arifje\craftimagecreator\services\providers\ProviderRegistry;
+use arifje\craftimagecreator\utilities\ImagePrompt;
 use arifje\craftimagecreator\web\assets\ImageCreatorAsset;
 use Craft;
 use craft\base\ElementInterface;
@@ -18,12 +20,14 @@ use craft\base\Field;
 use craft\base\Model;
 use craft\base\Plugin as BasePlugin;
 use craft\events\DefineFieldHtmlEvent;
+use craft\events\RegisterComponentTypesEvent;
 use craft\events\RegisterCpNavItemsEvent;
 use craft\events\RegisterUrlRulesEvent;
 use craft\events\RegisterUserPermissionsEvent;
 use craft\fields\Assets;
 use craft\helpers\Json;
 use craft\services\UserPermissions;
+use craft\services\Utilities;
 use craft\web\twig\variables\Cp;
 use craft\web\UrlManager;
 use craft\web\View;
@@ -37,13 +41,14 @@ use yii\base\Event;
  * @property-read GenerationRequests $generationRequests
  * @property-read GeneratedResults $generatedResults
  * @property-read ImageGenerator $imageGenerator
+ * @property-read Prompts $prompts
  * @property-read ProviderRegistry $providerRegistry
  */
 final class Plugin extends BasePlugin
 {
     public const PERMISSION_USE = 'craft-image-creator-use';
 
-    public string $schemaVersion = '1.0.0';
+    public string $schemaVersion = '1.0.1';
     public bool $hasCpSettings = true;
     public ?string $t9nCategory = 'craft-image-creator';
 
@@ -57,6 +62,7 @@ final class Plugin extends BasePlugin
                 'generationRequests' => GenerationRequests::class,
                 'generatedResults' => GeneratedResults::class,
                 'imageGenerator' => ImageGenerator::class,
+                'prompts' => Prompts::class,
                 'providerRegistry' => ProviderRegistry::class,
             ],
         ];
@@ -69,6 +75,7 @@ final class Plugin extends BasePlugin
         $this->registerCpRoutes();
         $this->registerCpNav();
         $this->registerPermissions();
+        $this->registerUtilities();
 
         Craft::$app->onInit(function(): void {
             $this->registerFieldActions();
@@ -237,6 +244,22 @@ final class Plugin extends BasePlugin
                         ],
                     ],
                 ];
+            }
+        );
+    }
+
+    private function registerUtilities(): void
+    {
+        $craft5Event = Utilities::class . '::EVENT_REGISTER_UTILITIES';
+        $eventName = defined($craft5Event)
+            ? (string)constant($craft5Event)
+            : (string)constant(Utilities::class . '::EVENT_REGISTER_UTILITY_TYPES');
+
+        Event::on(
+            Utilities::class,
+            $eventName,
+            static function(RegisterComponentTypesEvent $event): void {
+                $event->types[] = ImagePrompt::class;
             }
         );
     }

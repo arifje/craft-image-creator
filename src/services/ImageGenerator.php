@@ -78,7 +78,7 @@ final class ImageGenerator extends Component
             throw new RuntimeException('The extra context is too long.');
         }
 
-        $basePrompt = Plugin::getInstance()->getSettings()->getResolvedPrompt();
+        $basePrompt = Plugin::getInstance()->prompts->getPrompt();
         if ($basePrompt === '') {
             throw new RuntimeException('Configure an image prompt before generating images.');
         }

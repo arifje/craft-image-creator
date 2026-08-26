@@ -22,6 +22,8 @@ composer require arifje/craft-image-creator:^1.0
 php craft plugin/install craft-image-creator
 ```
 
+After updating an existing installation, run `php craft up` so Craft can apply the plugin's database migrations.
+
 ## Configuration
 
 Open **Settings -> Plugins -> Image Creator**.
@@ -34,30 +36,35 @@ Choose the standalone **Storage location** once in the plugin settings. The drop
 
 - **Assets fields** controls which image-capable Assets fields display the **Create with AI** action. The action is available whether the field is empty or already contains an Asset.
 - **Context fields** controls which element values are shown in the modal and appended to the provider prompt. Title, slug, global custom fields, and nested Matrix custom fields can be selected.
-- **Image prompt** is the multiline base instruction sent for every generation.
 - **Default provider** is selected when the modal opens, when that provider is configured.
 
 Fields are stored by UID so the configuration remains stable when handles change and can travel with project config. Nested fields are labelled in the settings screen. In a Matrix block, Image Creator reads context from the closest relevant block before falling back to the surrounding element form.
 
 Configured context fields are shown in the modal so an editor can review or adjust the text for that generation. Caption and Category values use compact single-line inputs; longer context remains multiline. An empty configured field is intentionally included as empty context; it does not prevent generation. Modal edits and **Extra context** are one-off prompt inputs and do not change the element's field values.
 
+### Image prompt
+
+Open **Utilities -> Image Creator Prompt** to edit the multiline base instruction used for image generation. The prompt is stored in the current environment's database rather than plugin settings or project config. Authorized users can therefore update the production prompt without changing `allowAdminChanges`, committing project config, or deploying a new plugin version.
+
+When upgrading an existing installation, Image Creator copies the previously effective plugin-setting prompt into the database once. This includes resolving an environment-variable reference that was configured previously. After that migration, the Utilities value is authoritative; changing the legacy plugin setting, config-file value, or environment variable does not change the active prompt.
+
+Prompt edits apply to generation requests submitted after the prompt is saved. Requests that are already queued keep the prepared prompt that was captured when they were submitted.
+
 ### Provider credentials
 
-OpenAI, xAI, and Google each have an API key and model setting. API keys use Craft autosuggest fields and should normally reference environment variables. Models are selected from provider-specific dropdowns populated with image models supported by this plugin. The prompt is a multiline textarea and can contain text or an environment-variable reference.
+OpenAI, xAI, and Google each have an API key and model setting. API keys use Craft autosuggest fields and should normally reference environment variables. Models are selected from provider-specific dropdowns populated with image models supported by this plugin.
 
 For example:
 
 ```dotenv
-IMAGE_CREATOR_PROMPT="Create a natural editorial photograph that accurately reflects the supplied context."
 OPENAI_API_KEY="..."
 XAI_API_KEY="..."
 GEMINI_API_KEY="..."
 ```
 
-Enter the corresponding prompt and API-key references in the plugin settings, then select each provider's model from its dropdown:
+Enter the corresponding API-key references in the plugin settings, then select each provider's model from its dropdown:
 
 ```text
-$IMAGE_CREATOR_PROMPT
 $OPENAI_API_KEY
 $XAI_API_KEY
 $GEMINI_API_KEY
@@ -91,7 +98,6 @@ return [
         'title',
         'field:ffffffff-1111-2222-3333-444444444444',
     ],
-    'prompt' => '$IMAGE_CREATOR_PROMPT',
     'defaultProvider' => 'openai',
     'openAiApiKey' => '$OPENAI_API_KEY',
     'openAiModel' => 'gpt-image-2',
@@ -102,11 +108,13 @@ return [
 ];
 ```
 
-Do not commit resolved API keys to source control or project config.
+The active image prompt is intentionally not a config-file setting; edit it under **Utilities -> Image Creator Prompt**. Do not commit resolved API keys to source control or project config.
 
 ## Permissions
 
 Grant editors the **Image Creator -> Create images with AI** permission. For field-based creation, they must also be allowed to edit the current element and save Assets to the field's resolved destination volume. For standalone creation, they need permission to view and save Assets in the volume configured as the standalone storage location.
+
+Users who may change the base prompt also need the **Utilities -> Image Creator Prompt** permission. This is independent from the image-creation permission; administrators implicitly have access to all utilities. The prompt-saving endpoint checks the utility authorization separately from access to the Utility page.
 
 Every request checks the plugin permission and the relevant `viewAssets:<volumeUid>` and/or `saveAssets:<volumeUid>` permissions. Field-based requests additionally check the element edit permission, selected Assets-field configuration, allowed file kinds, field selection conditions, and the field's resolved upload location. Standalone requests resolve the configured volume and its root on the server. The queue worker repeats these checks immediately before contacting a provider. A visible action is not treated as authorization.
 
@@ -136,7 +144,7 @@ For an Assets field with a relation limit of one, adding a generated image repla
 
 ## Queue processing
 
-Provider generation runs as a Craft queue job. The modal remains open and polls the user-bound request until the preview is ready; saving the approved preview as an Asset remains synchronous. This keeps slow provider requests out of control-panel web requests.
+Provider generation runs as a Craft queue job. The modal remains open and polls the user-bound request until the preview is ready; saving the approved preview as an Asset remains synchronous. This keeps slow provider requests out of control-panel web requests. The combined prompt is prepared and stored with the queued request, so a later Utilities edit affects only requests submitted after the change.
 
 Craft's default web queue runner can process jobs automatically. If `runQueueAutomatically` is disabled, run a worker such as:
 

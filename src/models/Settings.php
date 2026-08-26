@@ -36,6 +36,7 @@ final class Settings extends Model
     /** @var array<int, mixed> */
     public array $contextFields = ['title'];
     public string $standaloneVolumeUid = '';
+    /** @deprecated Retained for backward-compatible loading of legacy project config. */
     public string $prompt = 'Create a compelling, editorial-quality image based on the supplied context.';
     public string $defaultProvider = self::PROVIDER_OPENAI;
 
@@ -156,6 +157,7 @@ final class Settings extends Model
         return trim($this->standaloneVolumeUid);
     }
 
+    /** @deprecated The active prompt is provided by the database-backed Prompts service. */
     public function getResolvedPrompt(): string
     {
         return trim((string)App::parseEnv($this->prompt));
