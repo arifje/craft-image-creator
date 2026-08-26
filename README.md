@@ -8,7 +8,7 @@ The plugin supports Craft CMS 4.4 and Craft CMS 5, including Assets and context 
 
 - Craft CMS 4.4 or later, or Craft CMS 5
 - PHP 8.0.2 or later
-- A writable Craft volume for each enabled Assets field or standalone destination
+- A writable Craft volume for each enabled Assets field and for the configured standalone storage location
 - Outbound HTTPS access to at least one configured image provider
 - An API key with image-generation access for the selected provider
 - A working Craft queue runner
@@ -26,6 +26,10 @@ php craft plugin/install craft-image-creator
 
 Open **Settings -> Plugins -> Image Creator**.
 
+### Standalone storage
+
+Choose the standalone **Storage location** once in the plugin settings. The dropdown shows configured Craft filesystems that are backed by Asset volumes. Image Creator stores the selected volume UID and saves standalone images to that volume's root, so editors do not choose a destination on the Image Creator page.
+
 ### Field integration
 
 - **Assets fields** controls which image-capable Assets fields display the **Create with AI** action. The action is available whether the field is empty or already contains an Asset.
@@ -35,7 +39,7 @@ Open **Settings -> Plugins -> Image Creator**.
 
 Fields are stored by UID so the configuration remains stable when handles change and can travel with project config. Nested fields are labelled in the settings screen. In a Matrix block, Image Creator reads context from the closest relevant block before falling back to the surrounding element form.
 
-Configured context fields are shown in the modal so an editor can review or adjust the text for that generation. An empty configured field is intentionally included as empty context; it does not prevent generation. Modal edits and **Extra context** are one-off prompt inputs and do not change the element's field values.
+Configured context fields are shown in the modal so an editor can review or adjust the text for that generation. Caption and Category values use compact single-line inputs; longer context remains multiline. An empty configured field is intentionally included as empty context; it does not prevent generation. Modal edits and **Extra context** are one-off prompt inputs and do not change the element's field values.
 
 ### Provider credentials
 
@@ -73,12 +77,13 @@ The dropdowns contain models whose request formats are supported by this plugin.
 
 ### Optional config file
 
-Settings can also be supplied from `config/craft-image-creator.php`. Use field UIDs for both target fields and custom context fields; custom context locators use the `field:` prefix.
+Settings can also be supplied from `config/craft-image-creator.php`. Use the backing Asset volume UID for `standaloneVolumeUid`, and field UIDs for both target fields and custom context fields; custom context locators use the `field:` prefix.
 
 ```php
 <?php
 
 return [
+    'standaloneVolumeUid' => '11111111-2222-3333-4444-555555555555',
     'assetFieldUids' => [
         'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
     ],
@@ -101,20 +106,19 @@ Do not commit resolved API keys to source control or project config.
 
 ## Permissions
 
-Grant editors the **Image Creator -> Create images with AI** permission. For field-based creation, they must also be allowed to edit the current element and save Assets to the field's resolved destination volume. For standalone creation, they need permission to view and save Assets in the selected volume.
+Grant editors the **Image Creator -> Create images with AI** permission. For field-based creation, they must also be allowed to edit the current element and save Assets to the field's resolved destination volume. For standalone creation, they need permission to view and save Assets in the volume configured as the standalone storage location.
 
-Every request checks the plugin permission and the relevant `viewAssets:<volumeUid>` and/or `saveAssets:<volumeUid>` permissions. Field-based requests additionally check the element edit permission, selected Assets-field configuration, allowed file kinds, field selection conditions, and the field's resolved upload location. The queue worker repeats these checks immediately before contacting a provider. A button or folder option being visible is not treated as authorization.
+Every request checks the plugin permission and the relevant `viewAssets:<volumeUid>` and/or `saveAssets:<volumeUid>` permissions. Field-based requests additionally check the element edit permission, selected Assets-field configuration, allowed file kinds, field selection conditions, and the field's resolved upload location. Standalone requests resolve the configured volume and its root on the server. The queue worker repeats these checks immediately before contacting a provider. A visible action is not treated as authorization.
 
 ## Standalone workflow
 
 1. Open **Image Creator** in the control-panel sidebar.
-2. Select an Asset destination folder.
-3. Select **Create image**.
-4. Fill in any configured context fields and optional extra context.
-5. Choose a configured provider and image ratio, then generate and review the image.
-6. Select **Save Asset**.
+2. Select **Create image**.
+3. Fill in any configured context fields and optional extra context.
+4. Choose a configured provider and image ratio, then generate and review the image.
+5. Select **Save Asset**.
 
-The generated file is saved immediately as a normal Craft Asset in the selected folder. It is not attached to an entry or other element.
+The generated file is saved immediately as a normal Craft Asset at the root of the volume backing the storage location configured in the plugin settings. It is not attached to an entry or other element.
 
 ## Assets-field workflow
 
@@ -160,7 +164,7 @@ Image Creator requests the closest supported provider output and validates the r
 - Provider credentials stay on the server and are never included in the browser configuration.
 - Generation and Asset-save endpoints require an authenticated control-panel request, JSON acceptance, CSRF validation, and the Image Creator permission.
 - Generated image bytes are validated server-side for MIME type, dimensions, and file size.
-- Queue state and preview tokens are short-lived and bound to the current user and the canonical destination field or Asset folder.
+- Queue state and preview tokens are short-lived and bound to the current user and the canonical destination field or configured standalone volume root.
 - The queue worker rechecks the user's current permissions and destination immediately before contacting the provider.
 - The browser cannot submit an arbitrary remote URL for Asset import.
 - Temporary generated files and tokens expire; saving or discarding a result removes the temporary result when possible.

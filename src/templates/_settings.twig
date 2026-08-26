@@ -1,5 +1,18 @@
 {% import '_includes/forms' as forms %}
 
+<h2>{{ 'Standalone Image Creator'|t('craft-image-creator') }}</h2>
+
+{{ forms.selectField({
+    label: 'Storage location'|t('craft-image-creator'),
+    instructions: 'Choose the filesystem for standalone images. Only filesystems connected to an Asset volume are shown, and images are saved at that volume’s root.'|t('craft-image-creator'),
+    id: 'standaloneVolumeUid',
+    name: 'standaloneVolumeUid',
+    options: standaloneStorageOptions,
+    value: settings.getStandaloneVolumeUid(),
+    errors: settings.getErrors('standaloneVolumeUid'),
+}) }}
+
+<hr>
 <h2>{{ 'Field integration'|t('craft-image-creator') }}</h2>
 
 {{ forms.checkboxSelectField({

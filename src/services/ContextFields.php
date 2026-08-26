@@ -8,6 +8,7 @@ use arifje\craftimagecreator\Plugin;
 use Craft;
 use craft\base\Field;
 use craft\fields\Assets;
+use craft\fields\Categories;
 use craft\fields\Matrix;
 use yii\base\Component;
 
@@ -51,7 +52,7 @@ final class ContextFields extends Component
         return $options;
     }
 
-    /** @return array<int, array{key: string, label: string, handle: string, native: bool}> */
+    /** @return array<int, array{key: string, label: string, handle: string, native: bool, inputType: string}> */
     public function getConfiguredDefinitions(): array
     {
         $definitions = [];
@@ -62,6 +63,7 @@ final class ContextFields extends Component
                     'label' => ucfirst($locator),
                     'handle' => $locator,
                     'native' => true,
+                    'inputType' => $this->inputType(ucfirst($locator), $locator),
                 ];
                 continue;
             }
@@ -76,6 +78,7 @@ final class ContextFields extends Component
                 'label' => (string)$field->name,
                 'handle' => (string)$field->handle,
                 'native' => false,
+                'inputType' => $this->inputType((string)$field->name, (string)$field->handle, $field),
             ];
         }
 
@@ -109,6 +112,22 @@ final class ContextFields extends Component
             $field->handle,
             $nested ? ' — nested field' : ''
         );
+    }
+
+    private function inputType(string $label, string $handle, ?Field $field = null): string
+    {
+        if ($field instanceof Categories) {
+            return 'text';
+        }
+
+        foreach ([$handle, $label] as $name) {
+            $name = preg_replace('/[^a-z0-9]+/', '', strtolower(trim($name))) ?? '';
+            if (str_ends_with($name, 'caption') || in_array($name, ['category', 'categories'], true)) {
+                return 'text';
+            }
+        }
+
+        return 'textarea';
     }
 
     private function allowsImages(Assets $field): bool

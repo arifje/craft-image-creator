@@ -1,27 +1,20 @@
 import {ImageCreatorModal} from './modal.js';
-import {standaloneFolderTarget} from './helpers.js';
+import {standaloneTarget} from './helpers.js';
 
 export function installStandaloneCreator(config) {
 	const container = document.getElementById('craft-image-creator-standalone');
 	const button = document.getElementById('craft-image-creator-open');
-	const folderSelect = document.getElementById('craft-image-creator-folder');
-	if (!container || !button || !folderSelect) {
+	if (!container || !button) {
 		return;
 	}
 
 	button.addEventListener('click', () => {
-		const target = standaloneFolderTarget(folderSelect.value);
-		if (!target) {
-			Craft.cp.displayError(Craft.t('craft-image-creator', 'Choose an Asset destination folder.'));
-			return;
-		}
-
 		button.disabled = true;
 		try {
 			new ImageCreatorModal({
 				button,
 				context: container,
-				target,
+				target: standaloneTarget(),
 				standalone: true,
 			}, config, async (_context, asset) => {
 				const saved = container.querySelector('.craft-image-creator-standalone__saved');

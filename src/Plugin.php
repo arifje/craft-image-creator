@@ -87,6 +87,9 @@ final class Plugin extends BasePlugin
         return Craft::$app->getView()->renderTemplate('craft-image-creator/_settings.twig', [
             'plugin' => $this,
             'settings' => $settings,
+            'standaloneStorageOptions' => $this->assetCreator->getStandaloneStorageOptions(
+                $settings->getStandaloneVolumeUid()
+            ),
             'assetFieldOptions' => $this->contextFields->getAssetFieldOptions(),
             'contextFieldOptions' => $this->contextFields->getContextFieldOptions(),
             'providerOptions' => Settings::providerOptions(),
@@ -115,7 +118,6 @@ final class Plugin extends BasePlugin
             'Add to field',
             'Add details for this image only. Configured context fields may be left empty.',
             'Close',
-            'Choose an Asset destination folder.',
             'Craft could not render the generated Asset.',
             'Create with AI',
             'Create an image from the configured prompt and this element’s context.',

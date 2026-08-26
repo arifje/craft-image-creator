@@ -33,8 +33,7 @@
 }
 
 .modal.craft-image-creator-modal {
-	display: flex;
-	flex-direction: column;
+	display: block;
 	box-sizing: border-box;
 	inline-size: min(1040px, calc(100vw - 32px));
 	max-inline-size: 1040px;
@@ -44,6 +43,16 @@
 	min-block-size: min(400px, calc(100vh - 32px));
 	padding: 0;
 	background: var(--white, #fff);
+	overflow: hidden;
+}
+
+.craft-image-creator-modal__layout {
+	display: flex;
+	flex-direction: column;
+	box-sizing: border-box;
+	inline-size: 100%;
+	block-size: 100%;
+	min-block-size: 0;
 	overflow: hidden;
 }
 
@@ -225,11 +234,13 @@
 	padding-inline-end: 56px;
 }
 
-.craft-image-creator-modal__footer .buttons {
+.craft-image-creator-modal__actions {
 	display: flex;
 	flex-wrap: wrap;
+	align-items: center;
 	gap: 7px;
 	min-inline-size: 0;
+	min-block-size: var(--input-height, 34px);
 	margin: 0 !important;
 }
 
@@ -305,7 +316,7 @@
 		padding-inline-end: 16px;
 	}
 
-	.craft-image-creator-modal__footer .buttons {
+	.craft-image-creator-modal__actions {
 		display: grid;
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 		inline-size: 100%;

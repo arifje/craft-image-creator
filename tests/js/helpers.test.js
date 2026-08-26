@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
 	blankContextFields,
 	cacheBustUrl,
+	contextInputType,
 	extractRenderedElement,
 	generationPollDelay,
 	generationState,
@@ -11,7 +12,7 @@ import {
 	matchesNativeFieldName,
 	renderElementRequest,
 	responsePayload,
-	standaloneFolderTarget,
+	standaloneTarget,
 } from '../../resources/js/helpers.js';
 
 test('cacheBustUrl keeps local data URLs untouched', () => {
@@ -44,11 +45,8 @@ test('generationState validates the user-bound operation token', () => {
 	);
 });
 
-test('standaloneFolderTarget only creates canonical client folder requests', () => {
-	assert.deepEqual(standaloneFolderTarget('42'), {type: 'folder', folderId: 42});
-	assert.equal(standaloneFolderTarget(''), null);
-	assert.equal(standaloneFolderTarget('-1'), null);
-	assert.equal(standaloneFolderTarget('1.5'), null);
+test('standaloneTarget leaves destination selection to the server', () => {
+	assert.deepEqual(standaloneTarget(), {type: 'standalone'});
 });
 
 test('blankContextFields gives standalone creation empty editable context', () => {
@@ -56,9 +54,18 @@ test('blankContextFields gives standalone creation empty editable context', () =
 		{key: 'title', label: 'Title'},
 		{handle: 'summary'},
 	]), [
-		{key: 'title', label: 'Title', value: ''},
-		{key: 'summary', label: 'summary', value: ''},
+		{key: 'title', label: 'Title', inputType: 'textarea', value: ''},
+		{key: 'summary', label: 'summary', inputType: 'textarea', value: ''},
 	]);
+});
+
+test('contextInputType uses single-line inputs for captions and categories', () => {
+	assert.equal(contextInputType({handle: 'caption'}), 'text');
+	assert.equal(contextInputType({handle: 'imageCaption'}), 'text');
+	assert.equal(contextInputType({label: 'Categories'}), 'text');
+	assert.equal(contextInputType({handle: 'category'}), 'text');
+	assert.equal(contextInputType({handle: 'description'}), 'textarea');
+	assert.equal(contextInputType({handle: 'caption', inputType: 'textarea'}), 'textarea');
 });
 
 test('matchesFieldName handles top-level and nested Craft field namespaces', () => {

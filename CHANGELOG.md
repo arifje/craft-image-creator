@@ -1,5 +1,11 @@
 # Release Notes
 
+## 1.0.2 - 2026-08-26
+
+- Moves the standalone Image Creator destination from the creation page to a single **Storage location** filesystem setting and saves generated Assets to the root of its backing volume.
+- Keeps the modal action footer fixed and fully visible while its context fields and preview area scroll independently.
+- Uses single-line controls for **Caption** and **Category** context values.
+
 ## 1.0.1 - 2026-08-26
 
 - Adds a standalone **Image Creator** control-panel section for creating normal Craft Assets directly in an authorized destination folder.

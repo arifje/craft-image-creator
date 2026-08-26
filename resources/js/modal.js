@@ -75,7 +75,6 @@ export class ImageCreatorModal {
 		});
 		this.form.addEventListener('submit', (event) => {
 			event.preventDefault();
-			this.generate();
 		});
 
 		const closeButton = element('button', {
@@ -118,10 +117,11 @@ export class ImageCreatorModal {
 		});
 
 		this.generateButton = element('button', {
-			type: 'submit',
+			type: 'button',
 			className: 'btn submit',
 			text: translate('Generate image'),
 		});
+		this.generateButton.addEventListener('click', () => this.generate());
 		this.addButton = element('button', {
 			type: 'button',
 			className: 'btn submit',
@@ -145,7 +145,7 @@ export class ImageCreatorModal {
 		this.footerCloseButton.addEventListener('click', () => this.close());
 
 		const footer = element('footer', {className: 'craft-image-creator-modal__footer'}, [
-			element('div', {className: 'buttons'}, [
+			element('div', {className: 'craft-image-creator-modal__actions'}, [
 				this.generateButton,
 				this.addButton,
 				this.resetButton,
@@ -154,7 +154,12 @@ export class ImageCreatorModal {
 			this.status,
 		]);
 
-		this.form.append(header, this.body, this.error, footer);
+		this.form.appendChild(element('div', {className: 'craft-image-creator-modal__layout'}, [
+			header,
+			this.body,
+			this.error,
+			footer,
+		]));
 		this.refreshControls();
 	}
 
@@ -214,10 +219,11 @@ export class ImageCreatorModal {
 		const contextSection = element('div', {className: 'craft-image-creator-modal__context'});
 		this.initialContext.forEach((item, index) => {
 			const inputId = `${this.id}-context-${index}`;
-			const input = element('textarea', {
+			const input = element(item.inputType === 'text' ? 'input' : 'textarea', {
 				id: inputId,
+				type: item.inputType === 'text' ? 'text' : undefined,
 				className: 'text fullwidth',
-				rows: '2',
+				rows: item.inputType === 'text' ? undefined : '2',
 				maxlength: '10000',
 			});
 			input.value = item.value;
@@ -303,6 +309,7 @@ export class ImageCreatorModal {
 				hideOnShadeClick: false,
 				resizable: true,
 				triggerElement: this.context.button,
+				onFadeIn: () => this.garnishModal?.updateSizeAndPosition?.(),
 				onFadeOut: () => this.destroy(),
 			});
 		} else {

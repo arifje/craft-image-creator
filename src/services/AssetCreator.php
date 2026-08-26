@@ -8,6 +8,7 @@ use arifje\craftimagecreator\models\AssetTarget;
 use arifje\craftimagecreator\Plugin;
 use Craft;
 use craft\base\ElementInterface;
+use craft\base\MissingComponentInterface;
 use craft\elements\Asset;
 use craft\elements\conditions\ElementCondition;
 use craft\elements\User;
@@ -30,51 +31,77 @@ final class AssetCreator extends Component
             throw new RuntimeException('A signed-in user is required to create an Asset.');
         }
 
-        return ($target['type'] ?? 'field') === 'folder'
-            ? $this->resolveFolderTarget($target, $user)
-            : $this->resolveFieldTarget($target, $user);
+        $type = array_key_exists('type', $target)
+            ? trim((string)$target['type'])
+            : 'field';
+
+        return match ($type) {
+            'field' => $this->resolveFieldTarget($target, $user),
+            'standalone' => $this->resolveStandaloneTarget($target, $user),
+            default => throw new RuntimeException('The Asset destination is invalid.'),
+        };
     }
 
-    /**
-     * @return array<int, array{label?: string, value?: int, optgroup?: string}>
-     */
-    public function getStandaloneFolderOptions(?User $user = null): array
+    /** @return array<int, array{label: string, value: string}> */
+    public function getStandaloneStorageOptions(string $currentValue = ''): array
     {
-        $user ??= Craft::$app->getUser()->getIdentity();
-        if (!$user instanceof User) {
-            return [];
-        }
-
-        $options = [];
-        $assets = Craft::$app->getAssets();
-        foreach (Craft::$app->getVolumes()->getViewableVolumes() as $volume) {
-            if (!$user->can('saveAssets:' . $volume->uid)) {
+        $locations = [];
+        foreach (Craft::$app->getVolumes()->getAllVolumes() as $volume) {
+            $fsHandle = $volume->getFsHandle();
+            if (!$volume->id || !$volume->uid || !$fsHandle) {
                 continue;
             }
 
-            $root = $assets->getRootFolderByVolumeId((int)$volume->id);
-            if (!$root || !$root->id || !$root->uid) {
+            $filesystem = Craft::$app->getFs()->getFilesystemByHandle($fsHandle);
+            if (!$filesystem || $filesystem instanceof MissingComponentInterface) {
                 continue;
             }
 
-            $volumeName = Craft::t('site', (string)$volume->name);
-            $options[] = ['optgroup' => $volumeName];
-            $options[] = [
-                'label' => Craft::t('craft-image-creator', '{volume} root', [
-                    'volume' => $volumeName,
-                ]),
-                'value' => (int)$root->id,
+            $locations[] = [
+                'filesystemHandle' => $fsHandle,
+                'filesystemName' => Craft::t('site', (string)$filesystem->name),
+                'volumeName' => Craft::t('site', (string)$volume->name),
+                'volumeUid' => (string)$volume->uid,
             ];
-            foreach ($assets->getAllDescendantFolders($root, 'path', false) as $folder) {
-                if (!$folder->id || !$folder->uid) {
-                    continue;
-                }
-                $options[] = [
-                    'label' => trim((string)$folder->path, '/') ?: (string)$folder->name,
-                    'value' => (int)$folder->id,
-                ];
-            }
         }
+
+        $handleCounts = array_count_values(array_column($locations, 'filesystemHandle'));
+        $nameCounts = array_count_values(array_column($locations, 'filesystemName'));
+        $options = [];
+        foreach ($locations as $location) {
+            $label = $location['filesystemName'];
+            if (($handleCounts[$location['filesystemHandle']] ?? 0) > 1) {
+                $label .= ' — ' . $location['volumeName'];
+            } elseif (($nameCounts[$location['filesystemName']] ?? 0) > 1) {
+                $label .= ' (' . $location['filesystemHandle'] . ')';
+            }
+            $options[] = [
+                'label' => $label,
+                'value' => $location['volumeUid'],
+            ];
+        }
+        usort(
+            $options,
+            static fn(array $a, array $b): int => strnatcasecmp($a['label'], $b['label'])
+        );
+
+        $currentValue = trim($currentValue);
+        if (
+            $currentValue !== '' &&
+            !in_array($currentValue, array_column($options, 'value'), true)
+        ) {
+            $options[] = [
+                'label' => Craft::t('craft-image-creator', 'Unavailable storage — {uid}', [
+                    'uid' => $currentValue,
+                ]),
+                'value' => $currentValue,
+            ];
+        }
+
+        array_unshift($options, [
+            'label' => Craft::t('craft-image-creator', 'Select a filesystem'),
+            'value' => '',
+        ]);
 
         return $options;
     }
@@ -185,33 +212,46 @@ final class AssetCreator extends Component
     }
 
     /** @param array<string, mixed> $target */
-    private function resolveFolderTarget(array $target, User $user): AssetTarget
+    private function resolveStandaloneTarget(array $target, User $user): AssetTarget
     {
-        $folderId = filter_var($target['folderId'] ?? null, FILTER_VALIDATE_INT);
-        $folderUid = trim((string)($target['folderUid'] ?? ''));
-        if (($folderId === false || $folderId < 1) && $folderUid === '') {
-            throw new RuntimeException('Choose an Asset destination folder.');
+        $configuredVolumeUid = Plugin::getInstance()->getSettings()->getStandaloneVolumeUid();
+        if ($configuredVolumeUid === '') {
+            throw new RuntimeException('Standalone image storage has not been configured.');
         }
 
-        $assets = Craft::$app->getAssets();
-        $folder = $folderUid !== ''
-            ? $assets->getFolderByUid($folderUid)
-            : $assets->getFolderById((int)$folderId);
-        if (!$folder instanceof VolumeFolder || !$folder->id || !$folder->uid || !$folder->volumeId) {
-            throw new RuntimeException('The selected Asset destination folder no longer exists.');
+        $volume = Craft::$app->getVolumes()->getVolumeByUid($configuredVolumeUid);
+        $fsHandle = $volume?->getFsHandle();
+        $filesystem = $fsHandle ? Craft::$app->getFs()->getFilesystemByHandle($fsHandle) : null;
+        if (
+            !$volume?->id ||
+            !$volume->uid ||
+            !$fsHandle ||
+            !$filesystem ||
+            $filesystem instanceof MissingComponentInterface
+        ) {
+            throw new RuntimeException('The configured standalone storage location is unavailable.');
         }
 
-        $volume = $folder->getVolume();
         $expectedVolumeUid = trim((string)($target['volumeUid'] ?? ''));
-        if ($expectedVolumeUid !== '' && $expectedVolumeUid !== (string)$volume->uid) {
-            throw new RuntimeException('The selected Asset destination has changed. Choose it again.');
+        if ($expectedVolumeUid !== '' && $expectedVolumeUid !== $configuredVolumeUid) {
+            throw new RuntimeException('The standalone storage location has changed. Generate the image again.');
+        }
+
+        $folder = Craft::$app->getAssets()->getRootFolderByVolumeId((int)$volume->id);
+        if (!$folder instanceof VolumeFolder || !$folder->id || !$folder->uid || !$folder->volumeId) {
+            throw new RuntimeException('The configured standalone storage location has no Asset volume root.');
+        }
+
+        $expectedFolderUid = trim((string)($target['folderUid'] ?? ''));
+        if ($expectedFolderUid !== '' && $expectedFolderUid !== (string)$folder->uid) {
+            throw new RuntimeException('The standalone storage location has changed. Generate the image again.');
         }
         if (!$user->can('viewAssets:' . $volume->uid) || !$user->can('saveAssets:' . $volume->uid)) {
-            throw new ForbiddenHttpException('You are not allowed to save Assets in this folder.');
+            throw new ForbiddenHttpException('You are not allowed to use the standalone storage location.');
         }
 
         return new AssetTarget($folder, null, [
-            'type' => 'folder',
+            'type' => 'standalone',
             'folderUid' => (string)$folder->uid,
             'volumeUid' => (string)$volume->uid,
         ]);

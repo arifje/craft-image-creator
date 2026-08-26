@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace arifje\craftimagecreator\models;
 
 use Craft;
+use craft\base\MissingComponentInterface;
 use craft\base\Model;
 use craft\fields\Assets;
 use craft\helpers\App;
@@ -34,6 +35,7 @@ final class Settings extends Model
     public array $assetFieldUids = [];
     /** @var array<int, mixed> */
     public array $contextFields = ['title'];
+    public string $standaloneVolumeUid = '';
     public string $prompt = 'Create a compelling, editorial-quality image based on the supplied context.';
     public string $defaultProvider = self::PROVIDER_OPENAI;
 
@@ -49,13 +51,49 @@ final class Settings extends Model
     {
         return [
             [['assetFieldUids', 'contextFields'], 'safe'],
-            [['prompt', 'openAiApiKey', 'openAiModel', 'xAiApiKey', 'xAiModel', 'googleApiKey', 'googleModel'], 'string'],
+            [['standaloneVolumeUid'], 'filter', 'filter' => 'trim'],
+            [[
+                'standaloneVolumeUid',
+                'prompt',
+                'openAiApiKey',
+                'openAiModel',
+                'xAiApiKey',
+                'xAiModel',
+                'googleApiKey',
+                'googleModel',
+            ], 'string'],
+            [['standaloneVolumeUid'], 'string', 'max' => 64],
             [['prompt'], 'string', 'max' => 20_000],
             [['openAiModel', 'xAiModel', 'googleModel'], 'string', 'max' => 128],
             [['defaultProvider'], 'in', 'range' => array_keys(self::providerLabels())],
             [['assetFieldUids'], 'validateAssetFields'],
             [['contextFields'], 'validateContextFields'],
+            [['standaloneVolumeUid'], 'validateStandaloneVolume'],
         ];
+    }
+
+    public function validateStandaloneVolume(): void
+    {
+        $volumeUid = $this->getStandaloneVolumeUid();
+        if ($volumeUid === '') {
+            return;
+        }
+
+        $volume = Craft::$app->getVolumes()->getVolumeByUid($volumeUid);
+        $fsHandle = $volume?->getFsHandle();
+        $filesystem = $fsHandle ? Craft::$app->getFs()->getFilesystemByHandle($fsHandle) : null;
+        if (
+            !$volume?->id ||
+            !$volume->uid ||
+            !$fsHandle ||
+            !$filesystem ||
+            $filesystem instanceof MissingComponentInterface
+        ) {
+            $this->addError(
+                'standaloneVolumeUid',
+                'Choose a filesystem that is connected to an existing Asset volume.'
+            );
+        }
     }
 
     public function validateAssetFields(): void
@@ -111,6 +149,11 @@ final class Settings extends Model
             $this->contextFields,
             static fn($locator): bool => is_string($locator) && $locator !== ''
         )));
+    }
+
+    public function getStandaloneVolumeUid(): string
+    {
+        return trim($this->standaloneVolumeUid);
     }
 
     public function getResolvedPrompt(): string

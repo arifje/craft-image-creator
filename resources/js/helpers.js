@@ -193,6 +193,7 @@ export function readContextFields(context, definitions = []) {
 		return {
 			key: String(definition.key || definition.handle || ''),
 			label: String(definition.label || definition.handle || ''),
+			inputType: contextInputType(definition),
 			value: values.join('\n'),
 		};
 	});
@@ -202,8 +203,24 @@ export function blankContextFields(definitions = []) {
 	return definitions.map((definition) => ({
 		key: String(definition.key || definition.handle || ''),
 		label: String(definition.label || definition.handle || ''),
+		inputType: contextInputType(definition),
 		value: '',
 	}));
+}
+
+export function contextInputType(definition = {}) {
+	if (definition.inputType === 'text' || definition.inputType === 'textarea') {
+		return definition.inputType;
+	}
+
+	const names = [definition.handle, definition.label]
+		.map((value) => String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, ''));
+
+	return names.some((name) => (
+		name.endsWith('caption') || ['category', 'categories'].includes(name)
+	))
+		? 'text'
+		: 'textarea';
 }
 
 export function responsePayload(response) {
@@ -215,13 +232,8 @@ export function responsePayload(response) {
 	return payload;
 }
 
-export function standaloneFolderTarget(value) {
-	const folderId = Number(value);
-	if (!Number.isSafeInteger(folderId) || folderId < 1) {
-		return null;
-	}
-
-	return {type: 'folder', folderId};
+export function standaloneTarget() {
+	return {type: 'standalone'};
 }
 
 export function generationPollDelay(attempt) {

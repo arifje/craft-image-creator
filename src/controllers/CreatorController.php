@@ -48,11 +48,37 @@ final class CreatorController extends Controller
     {
         $plugin = Plugin::getInstance();
         $plugin->registerCpAssets();
+        $standaloneAvailable = true;
+        $standaloneUnavailableMessage = '';
+
+        try {
+            $plugin->assetCreator->resolveTarget(['type' => 'standalone']);
+        } catch (ForbiddenHttpException) {
+            $standaloneAvailable = false;
+            $standaloneUnavailableMessage = Craft::t(
+                'craft-image-creator',
+                'You do not have permission to view and save Assets in the configured storage location.'
+            );
+        } catch (RuntimeException) {
+            $standaloneAvailable = false;
+            $standaloneUnavailableMessage = Craft::t(
+                'craft-image-creator',
+                'Standalone storage is not configured or is unavailable. Ask an administrator to choose a filesystem in the Image Creator plugin settings.'
+            );
+        } catch (Throwable $exception) {
+            Craft::$app->getErrorHandler()->logException($exception);
+            $standaloneAvailable = false;
+            $standaloneUnavailableMessage = Craft::t(
+                'craft-image-creator',
+                'The configured standalone storage location could not be loaded.'
+            );
+        }
 
         return $this->asCpScreen()
             ->title(Craft::t('craft-image-creator', 'Image Creator'))
             ->contentTemplate('craft-image-creator/_creator.twig', [
-                'folderOptions' => $plugin->assetCreator->getStandaloneFolderOptions(),
+                'standaloneAvailable' => $standaloneAvailable,
+                'standaloneUnavailableMessage' => $standaloneUnavailableMessage,
             ]);
     }
 
