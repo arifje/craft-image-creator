@@ -1,0 +1,17 @@
+{
+  "name": "craft-image-creator-cp",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "scripts": {
+    "build": "vite build",
+    "test": "node --test tests/js/*.test.js",
+    "check": "node --check resources/js/main.js && node --check resources/js/helpers.js && node --check resources/js/field-actions.js && node --check resources/js/modal.js"
+  },
+  "devDependencies": {
+    "vite": "8.1.5"
+  }
+}

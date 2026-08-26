@@ -1,0 +1,8 @@
+<span
+    class="craft-image-creator-context hidden"
+    data-field-handle="{{ field.handle|e('html_attr') }}"
+    data-field-uid="{{ field.uid|e('html_attr') }}"
+    data-element-id="{{ element.id ?? '' }}"
+    data-site-id="{{ element.siteId ?? craft.app.sites.currentSite.id }}"
+    data-element-type="{{ className(element)|e('html_attr') }}"
+></span>

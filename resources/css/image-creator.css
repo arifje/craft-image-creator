@@ -1,0 +1,282 @@
+.craft-image-creator-field-button {
+	flex: 0 0 auto;
+	white-space: nowrap;
+}
+
+.craft-image-creator-modal [hidden] {
+	display: none !important;
+}
+
+.craft-image-creator-modal {
+	display: flex;
+	flex-direction: column;
+	inline-size: min(1040px, calc(100vw - 32px));
+	max-inline-size: 1040px;
+	min-inline-size: 0;
+	block-size: min(760px, calc(100vh - 32px));
+	max-block-size: calc(100vh - 32px);
+	padding: 0;
+	background: var(--white, #fff);
+	overflow: hidden;
+}
+
+.craft-image-creator-modal__header,
+.craft-image-creator-modal__footer {
+	display: flex;
+	flex: 0 0 auto;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	padding: 22px 24px;
+	background: var(--gray-050, #f3f4f6);
+}
+
+.craft-image-creator-modal__header {
+	align-items: flex-start;
+	border-block-end: 1px solid var(--hairline-color, #e3e5e8);
+}
+
+.craft-image-creator-modal__header h1 {
+	margin: 0 0 4px;
+	font-size: 20px;
+}
+
+.craft-image-creator-modal__header p {
+	margin: 0;
+	color: var(--light-text-color, #596673);
+}
+
+.craft-image-creator-modal__close {
+	flex: 0 0 auto;
+	min-inline-size: 34px;
+	padding-inline: 8px;
+}
+
+.craft-image-creator-modal__body {
+	display: grid;
+	grid-template-columns: minmax(0, 1.15fr) minmax(300px, .85fr);
+	flex: 1 1 auto;
+	gap: 24px;
+	min-block-size: 0;
+	padding: 24px;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+}
+
+.craft-image-creator-modal__controls,
+.craft-image-creator-modal__context {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	min-inline-size: 0;
+}
+
+.craft-image-creator-modal__selectors {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 16px;
+}
+
+.craft-image-creator-modal .field {
+	margin: 0;
+	min-inline-size: 0;
+}
+
+.craft-image-creator-modal .select,
+.craft-image-creator-modal .select select {
+	inline-size: 100%;
+}
+
+.craft-image-creator-modal textarea {
+	min-block-size: 58px;
+	max-block-size: 180px;
+	resize: vertical;
+}
+
+.craft-image-creator-modal__ratios {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 6px;
+}
+
+.craft-image-creator-modal__ratio {
+	position: relative;
+	min-inline-size: 0;
+}
+
+.craft-image-creator-modal__ratio input {
+	position: absolute;
+	opacity: 0;
+	pointer-events: none;
+}
+
+.craft-image-creator-modal__ratio span {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	box-sizing: border-box;
+	min-block-size: 34px;
+	padding: 6px 8px;
+	border: 1px solid var(--hairline-color, #cdd1d6);
+	border-radius: var(--small-border-radius, 4px);
+	background: var(--gray-050, #f3f4f6);
+	cursor: pointer;
+	font-weight: 600;
+	white-space: nowrap;
+}
+
+.craft-image-creator-modal__ratio input:checked + span {
+	border-color: var(--link-color, #0b69a3);
+	box-shadow: inset 0 0 0 1px var(--link-color, #0b69a3);
+	background: var(--gray-100, #e9ecef);
+}
+
+.craft-image-creator-modal__ratio input:focus-visible + span {
+	outline: 2px solid var(--focus-ring-color, #0b69a3);
+	outline-offset: 2px;
+}
+
+.craft-image-creator-modal__ratio input:disabled + span {
+	cursor: default;
+	opacity: .55;
+}
+
+.craft-image-creator-modal__preview {
+	position: sticky;
+	top: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	align-self: start;
+	box-sizing: border-box;
+	inline-size: 100%;
+	min-block-size: 360px;
+	max-block-size: calc(100vh - 230px);
+	border: 1px solid var(--hairline-color, #d9dde2);
+	border-radius: var(--large-border-radius, 6px);
+	background: var(--gray-050, #f3f4f6);
+	overflow: hidden;
+}
+
+.craft-image-creator-modal__preview img {
+	display: block;
+	inline-size: auto;
+	block-size: auto;
+	max-inline-size: 100%;
+	max-block-size: calc(100vh - 230px);
+	object-fit: contain;
+}
+
+.craft-image-creator-modal__placeholder {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 16px;
+	box-sizing: border-box;
+	inline-size: 100%;
+	min-block-size: 360px;
+	padding: 24px;
+	color: var(--light-text-color, #596673);
+	text-align: center;
+}
+
+.craft-image-creator-modal__error {
+	flex: 0 0 auto;
+	margin: 0;
+	padding: 12px 24px;
+	border-block-start: 1px solid var(--hairline-color, #e3e5e8);
+	background: var(--red-050, #fff1f2);
+}
+
+.craft-image-creator-modal__footer {
+	border-block-start: 1px solid var(--hairline-color, #e3e5e8);
+}
+
+.craft-image-creator-modal__footer .buttons {
+	margin: 0;
+}
+
+.craft-image-creator-modal__status {
+	color: var(--light-text-color, #596673);
+	font-size: 13px;
+}
+
+.craft-image-creator-modal__backdrop {
+	position: fixed;
+	z-index: 10000;
+	inset: 0;
+	background: rgb(31 41 51 / 65%);
+}
+
+.craft-image-creator-modal--fallback {
+	position: fixed;
+	z-index: 10001;
+	inset: 16px;
+	margin: auto;
+	background: #fff;
+	box-shadow: 0 16px 48px rgb(0 0 0 / 25%);
+}
+
+@media (max-width: 760px) {
+	.craft-image-creator-modal {
+		inline-size: calc(100vw - 16px);
+		block-size: calc(100vh - 16px);
+		max-block-size: calc(100vh - 16px);
+	}
+
+	.craft-image-creator-modal__header,
+	.craft-image-creator-modal__body,
+	.craft-image-creator-modal__footer {
+		padding: 16px;
+	}
+
+	.craft-image-creator-modal__body {
+		display: flex;
+		flex-direction: column;
+		gap: 20px;
+	}
+
+	.craft-image-creator-modal__selectors {
+		grid-template-columns: 1fr;
+	}
+
+	.craft-image-creator-modal__preview {
+		position: relative;
+		order: -1;
+		min-block-size: 220px;
+		max-block-size: 42vh;
+	}
+
+	.craft-image-creator-modal__placeholder {
+		min-block-size: 220px;
+	}
+
+	.craft-image-creator-modal__preview img {
+		max-block-size: 42vh;
+	}
+
+	.craft-image-creator-modal__footer {
+		align-items: flex-start;
+		flex-direction: column;
+	}
+
+	.craft-image-creator-modal__footer .buttons {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		inline-size: 100%;
+	}
+
+	.craft-image-creator-modal__footer .btn {
+		margin: 0;
+		text-align: center;
+	}
+}
+
+@media (max-width: 420px) {
+	.craft-image-creator-modal__ratios {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}

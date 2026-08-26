@@ -1,0 +1,112 @@
+{% import '_includes/forms' as forms %}
+
+<h2>{{ 'Field integration'|t('craft-image-creator') }}</h2>
+
+{{ forms.checkboxSelectField({
+    label: 'Assets fields'|t('craft-image-creator'),
+    instructions: 'Show “Create with AI” below these image-capable Assets fields. Empty fields, nested fields, Matrix blocks, and dynamically loaded tabs are supported.'|t('craft-image-creator'),
+    id: 'assetFieldUids',
+    name: 'assetFieldUids',
+    options: assetFieldOptions,
+    values: settings.getAssetFieldUids(),
+    showAllOption: false,
+}) }}
+
+{{ forms.checkboxSelectField({
+    label: 'Context fields'|t('craft-image-creator'),
+    instructions: 'These values appear in the modal and are appended to the image prompt. Editors can adjust them for a generation without changing the entry.'|t('craft-image-creator'),
+    id: 'contextFields',
+    name: 'contextFields',
+    options: contextFieldOptions,
+    values: settings.getContextFields(),
+    showAllOption: false,
+}) }}
+
+{{ forms.autosuggestField({
+    label: 'Image prompt'|t('craft-image-creator'),
+    instructions: 'The base instruction for every generated image. Enter text or an environment variable such as $IMAGE_CREATOR_PROMPT.'|t('craft-image-creator'),
+    id: 'prompt',
+    name: 'prompt',
+    value: settings.prompt,
+    suggestEnvVars: true,
+    suggestAliases: true,
+    placeholder: '$IMAGE_CREATOR_PROMPT',
+}) }}
+
+{{ forms.selectField({
+    label: 'Default provider'|t('craft-image-creator'),
+    instructions: 'The provider selected first in the creation modal.'|t('craft-image-creator'),
+    id: 'defaultProvider',
+    name: 'defaultProvider',
+    options: providerOptions,
+    value: settings.defaultProvider,
+}) }}
+
+<hr>
+<h2>OpenAI</h2>
+
+{{ forms.autosuggestField({
+    label: 'API key'|t('craft-image-creator'),
+    id: 'openAiApiKey',
+    name: 'openAiApiKey',
+    value: settings.openAiApiKey,
+    suggestEnvVars: true,
+    suggestAliases: true,
+    placeholder: '$OPENAI_API_KEY',
+}) }}
+
+{{ forms.autosuggestField({
+    label: 'Image model'|t('craft-image-creator'),
+    id: 'openAiModel',
+    name: 'openAiModel',
+    value: settings.openAiModel,
+    suggestEnvVars: true,
+    suggestAliases: true,
+    placeholder: 'gpt-image-2',
+}) }}
+
+<hr>
+<h2>Grok (xAI)</h2>
+
+{{ forms.autosuggestField({
+    label: 'API key'|t('craft-image-creator'),
+    id: 'xAiApiKey',
+    name: 'xAiApiKey',
+    value: settings.xAiApiKey,
+    suggestEnvVars: true,
+    suggestAliases: true,
+    placeholder: '$XAI_API_KEY',
+}) }}
+
+{{ forms.autosuggestField({
+    label: 'Image model'|t('craft-image-creator'),
+    id: 'xAiModel',
+    name: 'xAiModel',
+    value: settings.xAiModel,
+    suggestEnvVars: true,
+    suggestAliases: true,
+    placeholder: 'grok-imagine-image-2.0',
+}) }}
+
+<hr>
+<h2>Google Gemini</h2>
+
+{{ forms.autosuggestField({
+    label: 'API key'|t('craft-image-creator'),
+    id: 'googleApiKey',
+    name: 'googleApiKey',
+    value: settings.googleApiKey,
+    suggestEnvVars: true,
+    suggestAliases: true,
+    placeholder: '$GEMINI_API_KEY',
+}) }}
+
+{{ forms.autosuggestField({
+    label: 'Image model'|t('craft-image-creator'),
+    id: 'googleModel',
+    name: 'googleModel',
+    value: settings.googleModel,
+    suggestEnvVars: true,
+    suggestAliases: true,
+    placeholder: 'gemini-3.1-flash-image',
+}) }}

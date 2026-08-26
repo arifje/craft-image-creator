@@ -1,0 +1,52 @@
+{
+    "name": "arifje/craft-image-creator",
+    "description": "Create AI-generated images directly from Craft CMS Assets fields.",
+    "type": "craft-plugin",
+    "version": "1.0.0",
+    "license": "MIT",
+    "keywords": [
+        "craft",
+        "craftcms",
+        "ai",
+        "assets",
+        "image generation"
+    ],
+    "support": {
+        "issues": "https://github.com/arifje/craft-image-creator/issues",
+        "source": "https://github.com/arifje/craft-image-creator"
+    },
+    "require": {
+        "php": ">=8.0.2",
+        "craftcms/cms": "^4.4.0|^5.0.0",
+        "guzzlehttp/guzzle": "^7.4"
+    },
+    "require-dev": {
+        "craftcms/ecs": "dev-main",
+        "craftcms/phpstan": "dev-main"
+    },
+    "autoload": {
+        "psr-4": {
+            "arifje\\craftimagecreator\\": "src/"
+        }
+    },
+    "extra": {
+        "handle": "craft-image-creator",
+        "name": "Image Creator",
+        "developer": "Arjan Brinkman",
+        "developerUrl": "https://github.com/arifje",
+        "documentationUrl": "https://github.com/arifje/craft-image-creator",
+        "class": "arifje\\craftimagecreator\\Plugin"
+    },
+    "scripts": {
+        "check-cs": "ecs check --ansi",
+        "fix-cs": "ecs check --ansi --fix",
+        "phpstan": "phpstan analyse --memory-limit=1G"
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "craftcms/plugin-installer": true,
+            "yiisoft/yii2-composer": true
+        }
+    }
+}
