@@ -198,6 +198,14 @@ export function readContextFields(context, definitions = []) {
 	});
 }
 
+export function blankContextFields(definitions = []) {
+	return definitions.map((definition) => ({
+		key: String(definition.key || definition.handle || ''),
+		label: String(definition.label || definition.handle || ''),
+		value: '',
+	}));
+}
+
 export function responsePayload(response) {
 	const payload = response?.data ?? response ?? {};
 	if (payload.success === false) {
@@ -205,6 +213,40 @@ export function responsePayload(response) {
 	}
 
 	return payload;
+}
+
+export function standaloneFolderTarget(value) {
+	const folderId = Number(value);
+	if (!Number.isSafeInteger(folderId) || folderId < 1) {
+		return null;
+	}
+
+	return {type: 'folder', folderId};
+}
+
+export function generationPollDelay(attempt) {
+	const delays = [500, 750, 1000, 1500, 2000, 3000];
+	const index = Math.max(0, Math.min(Number(attempt) || 0, delays.length - 1));
+
+	return delays[index];
+}
+
+export function generationState(payload, expectedToken) {
+	const generation = payload?.generation;
+	const statuses = ['queued', 'running', 'complete', 'failed', 'cancelled'];
+	if (
+		!generation
+		|| generation.token !== expectedToken
+		|| !statuses.includes(generation.status)
+	) {
+		throw new Error('The server returned an invalid image generation status.');
+	}
+
+	return {
+		status: String(generation.status),
+		error: String(generation.error || ''),
+		result: payload?.result || null,
+	};
 }
 
 export function requestErrorMessage(error, fallback) {

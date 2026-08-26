@@ -15,6 +15,21 @@ final class Settings extends Model
     public const PROVIDER_XAI = 'xai';
     public const PROVIDER_GOOGLE = 'google';
 
+    /** @var array<string, array<string, string>> */
+    private const MODEL_LABELS = [
+        self::PROVIDER_OPENAI => [
+            'gpt-image-2' => 'GPT Image 2 — gpt-image-2',
+        ],
+        self::PROVIDER_XAI => [
+            'grok-imagine-image-2.0' => 'Grok Imagine Image 2.0 — grok-imagine-image-2.0',
+        ],
+        self::PROVIDER_GOOGLE => [
+            'gemini-3.1-flash-image' => 'Nano Banana 2 — gemini-3.1-flash-image',
+            'gemini-3.1-flash-lite-image' => 'Nano Banana 2 Lite — gemini-3.1-flash-lite-image',
+            'gemini-3-pro-image' => 'Nano Banana Pro — gemini-3-pro-image',
+        ],
+    ];
+
     /** @var array<int, mixed> */
     public array $assetFieldUids = [];
     /** @var array<int, mixed> */
@@ -133,6 +148,27 @@ final class Settings extends Model
         $options = [];
         foreach (self::providerLabels() as $value => $label) {
             $options[] = ['label' => $label, 'value' => $value];
+        }
+
+        return $options;
+    }
+
+    /** @return array<int, array{label: string, value: string}> */
+    public static function modelOptions(string $provider, string $currentValue = ''): array
+    {
+        $models = self::MODEL_LABELS[$provider] ?? [];
+        $options = [];
+        foreach ($models as $value => $label) {
+            $options[] = ['label' => $label, 'value' => $value];
+        }
+
+        // Retain model values saved by older versions or supplied through config.
+        // They can still be selected without restoring a free-form settings field.
+        if ($currentValue !== '' && !array_key_exists($currentValue, $models)) {
+            $options[] = [
+                'label' => sprintf('Current/custom — %s', $currentValue),
+                'value' => $currentValue,
+            ];
         }
 
         return $options;

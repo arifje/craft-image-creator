@@ -1,5 +1,14 @@
 # Release Notes
 
+## 1.0.1 - 2026-08-26
+
+- Adds a standalone **Image Creator** control-panel section for creating normal Craft Assets directly in an authorized destination folder.
+- Runs provider generation through Craft queue jobs with user-bound status polling, cancellation, and permission checks at execution time.
+- Replaces manual model inputs with provider-specific supported-model dropdowns while retaining existing custom values.
+- Changes the configured image prompt to a multiline textarea.
+- Makes the creation modal resizable and viewport-aware, with responsive action buttons that remain fully visible.
+- Strengthens generated-result ownership by binding queue requests and previews to the current user and canonical destination.
+
 ## 1.0.0 - 2026-08-26
 
 - Adds a **Create with AI** action to configured image-capable Assets fields, including empty fields, dynamically rendered fields, tabs, and Matrix blocks.

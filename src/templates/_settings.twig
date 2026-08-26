@@ -22,14 +22,14 @@
     showAllOption: false,
 }) }}
 
-{{ forms.autosuggestField({
+{{ forms.textareaField({
     label: 'Image prompt'|t('craft-image-creator'),
     instructions: 'The base instruction for every generated image. Enter text or an environment variable such as $IMAGE_CREATOR_PROMPT.'|t('craft-image-creator'),
     id: 'prompt',
     name: 'prompt',
     value: settings.prompt,
-    suggestEnvVars: true,
-    suggestAliases: true,
+    rows: 6,
+    maxlength: 20000,
     placeholder: '$IMAGE_CREATOR_PROMPT',
 }) }}
 
@@ -55,14 +55,13 @@
     placeholder: '$OPENAI_API_KEY',
 }) }}
 
-{{ forms.autosuggestField({
+{{ forms.selectField({
     label: 'Image model'|t('craft-image-creator'),
+    instructions: 'Choose an image model supported by this plugin.'|t('craft-image-creator'),
     id: 'openAiModel',
     name: 'openAiModel',
     value: settings.openAiModel,
-    suggestEnvVars: true,
-    suggestAliases: true,
-    placeholder: 'gpt-image-2',
+    options: modelOptions.openai,
 }) }}
 
 <hr>
@@ -78,14 +77,13 @@
     placeholder: '$XAI_API_KEY',
 }) }}
 
-{{ forms.autosuggestField({
+{{ forms.selectField({
     label: 'Image model'|t('craft-image-creator'),
+    instructions: 'Choose an image model supported by this plugin.'|t('craft-image-creator'),
     id: 'xAiModel',
     name: 'xAiModel',
     value: settings.xAiModel,
-    suggestEnvVars: true,
-    suggestAliases: true,
-    placeholder: 'grok-imagine-image-2.0',
+    options: modelOptions.xai,
 }) }}
 
 <hr>
@@ -101,12 +99,11 @@
     placeholder: '$GEMINI_API_KEY',
 }) }}
 
-{{ forms.autosuggestField({
+{{ forms.selectField({
     label: 'Image model'|t('craft-image-creator'),
+    instructions: 'Choose an image model supported by this plugin.'|t('craft-image-creator'),
     id: 'googleModel',
     name: 'googleModel',
     value: settings.googleModel,
-    suggestEnvVars: true,
-    suggestAliases: true,
-    placeholder: 'gemini-3.1-flash-image',
+    options: modelOptions.google,
 }) }}

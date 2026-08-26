@@ -2,18 +2,63 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+	blankContextFields,
 	cacheBustUrl,
 	extractRenderedElement,
+	generationPollDelay,
+	generationState,
 	matchesFieldName,
 	matchesNativeFieldName,
 	renderElementRequest,
 	responsePayload,
+	standaloneFolderTarget,
 } from '../../resources/js/helpers.js';
 
 test('cacheBustUrl keeps local data URLs untouched', () => {
 	assert.equal(cacheBustUrl('data:image/png;base64,abc', 42), 'data:image/png;base64,abc');
 	assert.equal(cacheBustUrl('/asset.jpg', 42), '/asset.jpg?imageCreator=42');
 	assert.equal(cacheBustUrl('/asset.jpg?w=100', 42), '/asset.jpg?w=100&imageCreator=42');
+});
+
+test('generationPollDelay backs off and remains capped', () => {
+	assert.equal(generationPollDelay(0), 500);
+	assert.equal(generationPollDelay(3), 1500);
+	assert.equal(generationPollDelay(99), 3000);
+});
+
+test('generationState validates the user-bound operation token', () => {
+	assert.deepEqual(generationState({
+		generation: {token: 'abc', status: 'running'},
+	}, 'abc'), {
+		status: 'running',
+		error: '',
+		result: null,
+	});
+	assert.throws(
+		() => generationState({generation: {token: 'other', status: 'complete'}}, 'abc'),
+		/invalid image generation status/
+	);
+	assert.throws(
+		() => generationState({generation: {token: 'abc', status: 'unknown'}}, 'abc'),
+		/invalid image generation status/
+	);
+});
+
+test('standaloneFolderTarget only creates canonical client folder requests', () => {
+	assert.deepEqual(standaloneFolderTarget('42'), {type: 'folder', folderId: 42});
+	assert.equal(standaloneFolderTarget(''), null);
+	assert.equal(standaloneFolderTarget('-1'), null);
+	assert.equal(standaloneFolderTarget('1.5'), null);
+});
+
+test('blankContextFields gives standalone creation empty editable context', () => {
+	assert.deepEqual(blankContextFields([
+		{key: 'title', label: 'Title'},
+		{handle: 'summary'},
+	]), [
+		{key: 'title', label: 'Title', value: ''},
+		{key: 'summary', label: 'summary', value: ''},
+	]);
 });
 
 test('matchesFieldName handles top-level and nested Craft field namespaces', () => {

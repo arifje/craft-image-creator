@@ -14,14 +14,14 @@ use yii\caching\CacheInterface;
 
 final class GeneratedResults extends Component
 {
-    private const CACHE_DURATION = 900;
+    public const CACHE_DURATION = 900;
     private const CACHE_KEY_PREFIX = 'craft-image-creator:result:';
     private const MAX_DIMENSION = 8_192;
     private const MAX_PIXELS = 20_000_000;
     private const MAX_RESULT_SIZE = 25_000_000;
 
     /**
-     * @param array{fieldUid: string, elementId: int, siteId: int, elementType: string} $target
+     * @param array<string, mixed> $target
      * @return array{token: string, mimeType: string, extension: string, width: int, height: int}
      */
     public function store(
@@ -30,10 +30,14 @@ final class GeneratedResults extends Component
         string $provider,
         string $ratio,
         array $target,
+        ?string $token = null,
     ): array {
         if ($generatedImage->bytes === '' || strlen($generatedImage->bytes) > self::MAX_RESULT_SIZE) {
             throw new RuntimeException('The generated image has an invalid file size.');
         }
+
+        $token ??= bin2hex(random_bytes(32));
+        $this->validateToken($token);
 
         $this->cleanupExpiredFiles();
         $directory = $this->resultDirectory();
@@ -53,7 +57,6 @@ final class GeneratedResults extends Component
 
             [$width, $height] = $this->enforceRatio($resultPath, $ratio, $width, $height);
             [$mimeType, $extension, $width, $height] = $this->validateImage($resultPath);
-            $token = bin2hex(random_bytes(32));
             $result = [
                 'userId' => $userId,
                 'path' => $resultPath,
@@ -91,7 +94,7 @@ final class GeneratedResults extends Component
     }
 
     /**
-     * @param array{fieldUid: string, elementId: int, siteId: int, elementType: string}|null $target
+     * @param array<string, mixed>|null $target
      * @return array{
      *     userId: int,
      *     path: string,
@@ -101,7 +104,7 @@ final class GeneratedResults extends Component
      *     height: int,
      *     provider: string,
      *     ratio: string,
-     *     target: array{fieldUid: string, elementId: int, siteId: int, elementType: string},
+     *     target: array<string, mixed>,
      *     createdAt: int
      * }
      */
@@ -128,7 +131,7 @@ final class GeneratedResults extends Component
             !is_file((string)$result['path']) ||
             ($target !== null && $result['target'] !== $target)
         ) {
-            throw new RuntimeException('The generated image has expired or belongs to another field. Generate it again.');
+            throw new RuntimeException('The generated image has expired or belongs to another destination. Generate it again.');
         }
 
         [$mimeType, $extension, $width, $height] = $this->validateImage((string)$result['path']);
@@ -150,7 +153,7 @@ final class GeneratedResults extends Component
          *     height: int,
          *     provider: string,
          *     ratio: string,
-         *     target: array{fieldUid: string, elementId: int, siteId: int, elementType: string},
+         *     target: array<string, mixed>,
          *     createdAt: int
          * } $result
          */
@@ -163,6 +166,21 @@ final class GeneratedResults extends Component
         $this->cache()->delete($this->cacheKey($token));
         if (is_file($result['path'])) {
             @unlink($result['path']);
+        }
+    }
+
+    public function discardIfExists(string $token, int $userId): void
+    {
+        $this->validateToken($token);
+        $result = $this->cache()->get($this->cacheKey($token));
+        if (!is_array($result) || (int)($result['userId'] ?? 0) !== $userId) {
+            return;
+        }
+
+        $this->cache()->delete($this->cacheKey($token));
+        $path = $result['path'] ?? null;
+        if (is_string($path) && is_file($path)) {
+            @unlink($path);
         }
     }
 

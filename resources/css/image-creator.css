@@ -3,18 +3,45 @@
 	white-space: nowrap;
 }
 
+.craft-image-creator-standalone {
+	max-inline-size: 720px;
+}
+
+.craft-image-creator-standalone [hidden] {
+	display: none !important;
+}
+
+.craft-image-creator-standalone__intro {
+	max-inline-size: 60ch;
+	margin-block-end: 24px;
+	color: var(--light-text-color, #596673);
+}
+
+.craft-image-creator-standalone__saved {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin-block-start: 24px;
+	padding: 14px 16px;
+	border: 1px solid var(--hairline-color, #d9dde2);
+	border-radius: var(--large-border-radius, 6px);
+	background: var(--gray-050, #f3f4f6);
+}
+
 .craft-image-creator-modal [hidden] {
 	display: none !important;
 }
 
-.craft-image-creator-modal {
+.modal.craft-image-creator-modal {
 	display: flex;
 	flex-direction: column;
+	box-sizing: border-box;
 	inline-size: min(1040px, calc(100vw - 32px));
 	max-inline-size: 1040px;
-	min-inline-size: 0;
+	min-inline-size: min(600px, calc(100vw - 32px));
 	block-size: min(760px, calc(100vh - 32px));
 	max-block-size: calc(100vh - 32px);
+	min-block-size: min(400px, calc(100vh - 32px));
 	padding: 0;
 	background: var(--white, #fff);
 	overflow: hidden;
@@ -192,10 +219,22 @@
 }
 
 .craft-image-creator-modal__footer {
+	box-sizing: border-box;
+	flex-wrap: wrap;
 	border-block-start: 1px solid var(--hairline-color, #e3e5e8);
+	padding-inline-end: 56px;
 }
 
 .craft-image-creator-modal__footer .buttons {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 7px;
+	min-inline-size: 0;
+	margin: 0 !important;
+}
+
+.craft-image-creator-modal__footer .btn {
+	flex: 0 0 auto;
 	margin: 0;
 }
 
@@ -221,10 +260,12 @@
 }
 
 @media (max-width: 760px) {
-	.craft-image-creator-modal {
+	.modal.craft-image-creator-modal {
 		inline-size: calc(100vw - 16px);
+		min-inline-size: 0;
 		block-size: calc(100vh - 16px);
 		max-block-size: calc(100vh - 16px);
+		min-block-size: 0;
 	}
 
 	.craft-image-creator-modal__header,
@@ -261,6 +302,7 @@
 	.craft-image-creator-modal__footer {
 		align-items: flex-start;
 		flex-direction: column;
+		padding-inline-end: 16px;
 	}
 
 	.craft-image-creator-modal__footer .buttons {
@@ -272,6 +314,10 @@
 	.craft-image-creator-modal__footer .btn {
 		margin: 0;
 		text-align: center;
+	}
+
+	.craft-image-creator-modal > .resizehandle {
+		display: none;
 	}
 }
 

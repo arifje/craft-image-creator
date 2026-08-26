@@ -1,0 +1,34 @@
+{% import '_includes/forms' as forms %}
+
+<div id="craft-image-creator-standalone" class="craft-image-creator-standalone">
+    <p class="craft-image-creator-standalone__intro">
+        {{ 'Generate a standalone image Asset by entering context directly, without attaching it to an entry.'|t('craft-image-creator') }}
+    </p>
+
+    {% if folderOptions|length %}
+        {{ forms.selectField({
+            label: 'Destination'|t('craft-image-creator'),
+            instructions: 'Choose the Asset folder where the generated image will be saved.'|t('craft-image-creator'),
+            id: 'craft-image-creator-folder',
+            name: 'craft-image-creator-folder',
+            options: folderOptions,
+        }) }}
+
+        <div class="buttons">
+            <button
+                id="craft-image-creator-open"
+                class="btn submit"
+                type="button"
+            >{{ 'Create image'|t('craft-image-creator') }}</button>
+        </div>
+
+        <div class="craft-image-creator-standalone__saved" hidden>
+            <strong>{{ 'Saved Asset'|t('craft-image-creator') }}</strong>
+            <a class="go" href=""></a>
+        </div>
+    {% else %}
+        <p class="warning with-icon">
+            {{ 'No Asset folders are available. Ask an administrator for view and save permission on an Asset volume.'|t('craft-image-creator') }}
+        </p>
+    {% endif %}
+</div>

@@ -8,6 +8,7 @@ use arifje\craftimagecreator\models\Settings;
 use arifje\craftimagecreator\services\AssetCreator;
 use arifje\craftimagecreator\services\ContextFields;
 use arifje\craftimagecreator\services\GeneratedResults;
+use arifje\craftimagecreator\services\GenerationRequests;
 use arifje\craftimagecreator\services\ImageGenerator;
 use arifje\craftimagecreator\services\providers\ProviderRegistry;
 use arifje\craftimagecreator\web\assets\ImageCreatorAsset;
@@ -17,11 +18,13 @@ use craft\base\Field;
 use craft\base\Model;
 use craft\base\Plugin as BasePlugin;
 use craft\events\DefineFieldHtmlEvent;
+use craft\events\RegisterCpNavItemsEvent;
 use craft\events\RegisterUrlRulesEvent;
 use craft\events\RegisterUserPermissionsEvent;
 use craft\fields\Assets;
 use craft\helpers\Json;
 use craft\services\UserPermissions;
+use craft\web\twig\variables\Cp;
 use craft\web\UrlManager;
 use craft\web\View;
 use yii\base\Event;
@@ -31,6 +34,7 @@ use yii\base\Event;
  * @method Settings getSettings()
  * @property-read AssetCreator $assetCreator
  * @property-read ContextFields $contextFields
+ * @property-read GenerationRequests $generationRequests
  * @property-read GeneratedResults $generatedResults
  * @property-read ImageGenerator $imageGenerator
  * @property-read ProviderRegistry $providerRegistry
@@ -50,6 +54,7 @@ final class Plugin extends BasePlugin
             'components' => [
                 'assetCreator' => AssetCreator::class,
                 'contextFields' => ContextFields::class,
+                'generationRequests' => GenerationRequests::class,
                 'generatedResults' => GeneratedResults::class,
                 'imageGenerator' => ImageGenerator::class,
                 'providerRegistry' => ProviderRegistry::class,
@@ -62,6 +67,7 @@ final class Plugin extends BasePlugin
         parent::init();
 
         $this->registerCpRoutes();
+        $this->registerCpNav();
         $this->registerPermissions();
 
         Craft::$app->onInit(function(): void {
@@ -76,12 +82,28 @@ final class Plugin extends BasePlugin
 
     protected function settingsHtml(): ?string
     {
+        $settings = $this->getSettings();
+
         return Craft::$app->getView()->renderTemplate('craft-image-creator/_settings.twig', [
             'plugin' => $this,
-            'settings' => $this->getSettings(),
+            'settings' => $settings,
             'assetFieldOptions' => $this->contextFields->getAssetFieldOptions(),
             'contextFieldOptions' => $this->contextFields->getContextFieldOptions(),
             'providerOptions' => Settings::providerOptions(),
+            'modelOptions' => [
+                Settings::PROVIDER_OPENAI => Settings::modelOptions(
+                    Settings::PROVIDER_OPENAI,
+                    $settings->openAiModel
+                ),
+                Settings::PROVIDER_XAI => Settings::modelOptions(
+                    Settings::PROVIDER_XAI,
+                    $settings->xAiModel
+                ),
+                Settings::PROVIDER_GOOGLE => Settings::modelOptions(
+                    Settings::PROVIDER_GOOGLE,
+                    $settings->googleModel
+                ),
+            ],
         ]);
     }
 
@@ -93,35 +115,46 @@ final class Plugin extends BasePlugin
             'Add to field',
             'Add details for this image only. Configured context fields may be left empty.',
             'Close',
+            'Choose an Asset destination folder.',
             'Craft could not render the generated Asset.',
             'Create with AI',
             'Create an image from the configured prompt and this element’s context.',
+            'Create a standalone Asset from your prompt and context.',
             'Extra context',
             'Filename',
             'Generate image',
             'Generated automatically',
             'Generated image',
             'Generating image…',
+            'Image generation was cancelled.',
             'Image created and added to the field.',
+            'Image created and saved.',
             'Image ratio',
             'No AI image provider is configured.',
             'Optional details, visual direction, or constraints for this image.',
+            'Open Asset',
             'Provider',
             'Reset',
             'Saving Asset…',
             'Save the element before creating an image.',
+            'Save Asset',
             'The Asset was saved, but it could not be added to this field. Try Add to field again.',
+            'The Asset was saved, but the page could not be updated.',
             'The Assets field is not ready yet.',
             'The current Asset relation could not be identified.',
             'The generated preview could not be loaded. Generate the image again.',
             'The image could not be generated.',
+            'The image generation failed. Try again.',
+            'The image generation request expired. Generate it again.',
             'The image could not be saved.',
             'The server did not return a generated image.',
+            'The server did not return an image generation request.',
             'The server did not return the saved Asset.',
             'This Assets field has reached its relation limit.',
             'You are not allowed to add Assets to this field.',
             'You are not allowed to replace this Asset relation.',
             'Your generated image will appear here.',
+            'Waiting for image generation…',
         ]);
 
         $config = [
@@ -138,6 +171,8 @@ final class Plugin extends BasePlugin
             ],
             'routes' => [
                 'generate' => 'craft-image-creator/creator/generate',
+                'status' => 'craft-image-creator/creator/status',
+                'cancel' => 'craft-image-creator/creator/cancel',
                 'save' => 'craft-image-creator/creator/save',
                 'discard' => 'craft-image-creator/creator/discard',
             ],
@@ -156,10 +191,32 @@ final class Plugin extends BasePlugin
             UrlManager::class,
             UrlManager::EVENT_REGISTER_CP_URL_RULES,
             static function(RegisterUrlRulesEvent $event): void {
+                $event->rules['image-creator-ai'] = 'craft-image-creator/creator/index';
                 $event->rules['image-creator-ai/api/generate'] = 'craft-image-creator/creator/generate';
+                $event->rules['image-creator-ai/api/status'] = 'craft-image-creator/creator/status';
+                $event->rules['image-creator-ai/api/cancel'] = 'craft-image-creator/creator/cancel';
                 $event->rules['image-creator-ai/api/save'] = 'craft-image-creator/creator/save';
                 $event->rules['image-creator-ai/api/discard'] = 'craft-image-creator/creator/discard';
                 $event->rules['image-creator-ai/api/preview'] = 'craft-image-creator/creator/preview';
+            }
+        );
+    }
+
+    private function registerCpNav(): void
+    {
+        Event::on(
+            Cp::class,
+            Cp::EVENT_REGISTER_CP_NAV_ITEMS,
+            static function(RegisterCpNavItemsEvent $event): void {
+                if (!Craft::$app->getUser()->checkPermission(self::PERMISSION_USE)) {
+                    return;
+                }
+
+                $event->navItems[] = [
+                    'label' => Craft::t('craft-image-creator', 'Image Creator'),
+                    'url' => 'image-creator-ai',
+                    'icon' => __DIR__ . '/icon-mask.svg',
+                ];
             }
         );
     }

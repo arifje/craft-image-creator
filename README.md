@@ -1,6 +1,6 @@
 # Image Creator for Craft CMS
 
-Image Creator adds a **Create with AI** action to selected image-capable Assets fields in the Craft control panel. Editors can combine the current element's content with one-off instructions, generate an image with OpenAI, Grok (xAI), or Google Gemini, and add the result to the field as a normal Craft Asset.
+Image Creator adds a standalone **Image Creator** section and a **Create with AI** action to selected image-capable Assets fields in the Craft control panel. Editors can combine configured context with one-off instructions, generate an image with OpenAI, Grok (xAI), or Google Gemini, and save the result as a normal Craft Asset.
 
 The plugin supports Craft CMS 4.4 and Craft CMS 5, including Assets and context fields nested in Matrix blocks.
 
@@ -8,9 +8,10 @@ The plugin supports Craft CMS 4.4 and Craft CMS 5, including Assets and context 
 
 - Craft CMS 4.4 or later, or Craft CMS 5
 - PHP 8.0.2 or later
-- A writable Craft volume for each enabled Assets field
+- A writable Craft volume for each enabled Assets field or standalone destination
 - Outbound HTTPS access to at least one configured image provider
 - An API key with image-generation access for the selected provider
+- A working Craft queue runner
 
 ## Installation
 
@@ -29,7 +30,7 @@ Open **Settings -> Plugins -> Image Creator**.
 
 - **Assets fields** controls which image-capable Assets fields display the **Create with AI** action. The action is available whether the field is empty or already contains an Asset.
 - **Context fields** controls which element values are shown in the modal and appended to the provider prompt. Title, slug, global custom fields, and nested Matrix custom fields can be selected.
-- **Image prompt** is the base instruction sent for every generation.
+- **Image prompt** is the multiline base instruction sent for every generation.
 - **Default provider** is selected when the modal opens, when that provider is configured.
 
 Fields are stored by UID so the configuration remains stable when handles change and can travel with project config. Nested fields are labelled in the settings screen. In a Matrix block, Image Creator reads context from the closest relevant block before falling back to the surrounding element form.
@@ -38,30 +39,24 @@ Configured context fields are shown in the modal so an editor can review or adju
 
 ### Provider credentials
 
-OpenAI, xAI, and Google each have an API key and model setting. All prompt, API-key, and model inputs are Craft autosuggest fields and support environment variables or aliases. Environment variables are recommended for secrets.
+OpenAI, xAI, and Google each have an API key and model setting. API keys use Craft autosuggest fields and should normally reference environment variables. Models are selected from provider-specific dropdowns populated with image models supported by this plugin. The prompt is a multiline textarea and can contain text or an environment-variable reference.
 
 For example:
 
 ```dotenv
 IMAGE_CREATOR_PROMPT="Create a natural editorial photograph that accurately reflects the supplied context."
 OPENAI_API_KEY="..."
-OPENAI_IMAGE_MODEL="gpt-image-2"
 XAI_API_KEY="..."
-XAI_IMAGE_MODEL="grok-imagine-image-2.0"
 GEMINI_API_KEY="..."
-GEMINI_IMAGE_MODEL="gemini-3.1-flash-image"
 ```
 
-Enter the corresponding variable references in the plugin settings:
+Enter the corresponding prompt and API-key references in the plugin settings, then select each provider's model from its dropdown:
 
 ```text
 $IMAGE_CREATOR_PROMPT
 $OPENAI_API_KEY
-$OPENAI_IMAGE_MODEL
 $XAI_API_KEY
-$XAI_IMAGE_MODEL
 $GEMINI_API_KEY
-$GEMINI_IMAGE_MODEL
 ```
 
 Only providers with both a resolved API key and model are offered in the creation modal. Provider access, model availability, billing, safety rules, and request limits are managed by the provider account.
@@ -74,7 +69,7 @@ The current default models are:
 | Grok (xAI) | `grok-imagine-image-2.0` | [Image generation](https://docs.x.ai/developers/model-capabilities/images/generation) |
 | Google Gemini | `gemini-3.1-flash-image` | [Image generation](https://ai.google.dev/gemini-api/docs/image-generation) |
 
-Model names are configurable so they can be updated without a plugin release.
+The dropdowns contain models whose request formats are supported by this plugin. Existing custom or environment-based model values are retained during upgrades; advanced model overrides can also be supplied through the optional config file.
 
 ### Optional config file
 
@@ -94,11 +89,11 @@ return [
     'prompt' => '$IMAGE_CREATOR_PROMPT',
     'defaultProvider' => 'openai',
     'openAiApiKey' => '$OPENAI_API_KEY',
-    'openAiModel' => '$OPENAI_IMAGE_MODEL',
+    'openAiModel' => 'gpt-image-2',
     'xAiApiKey' => '$XAI_API_KEY',
-    'xAiModel' => '$XAI_IMAGE_MODEL',
+    'xAiModel' => 'grok-imagine-image-2.0',
     'googleApiKey' => '$GEMINI_API_KEY',
-    'googleModel' => '$GEMINI_IMAGE_MODEL',
+    'googleModel' => 'gemini-3.1-flash-image',
 ];
 ```
 
@@ -106,11 +101,22 @@ Do not commit resolved API keys to source control or project config.
 
 ## Permissions
 
-Grant editors the **Image Creator -> Create images with AI** permission. They must also be allowed to edit the current element and save Assets to the resolved destination volume.
+Grant editors the **Image Creator -> Create images with AI** permission. For field-based creation, they must also be allowed to edit the current element and save Assets to the field's resolved destination volume. For standalone creation, they need permission to view and save Assets in the selected volume.
 
-Every save request checks the plugin permission, element edit permission, `saveAssets:<volumeUid>`, the selected Assets-field configuration, allowed file kinds, field selection conditions, and the field's resolved upload location. A button being visible is not treated as authorization.
+Every request checks the plugin permission and the relevant `viewAssets:<volumeUid>` and/or `saveAssets:<volumeUid>` permissions. Field-based requests additionally check the element edit permission, selected Assets-field configuration, allowed file kinds, field selection conditions, and the field's resolved upload location. The queue worker repeats these checks immediately before contacting a provider. A button or folder option being visible is not treated as authorization.
 
-## Editor workflow
+## Standalone workflow
+
+1. Open **Image Creator** in the control-panel sidebar.
+2. Select an Asset destination folder.
+3. Select **Create image**.
+4. Fill in any configured context fields and optional extra context.
+5. Choose a configured provider and image ratio, then generate and review the image.
+6. Select **Save Asset**.
+
+The generated file is saved immediately as a normal Craft Asset in the selected folder. It is not attached to an entry or other element.
+
+## Assets-field workflow
 
 1. Open an entry or another editable element containing an enabled Assets field.
 2. Select **Create with AI** below the field.
@@ -123,6 +129,20 @@ Every save request checks the plugin permission, element edit permission, `saveA
 The generated file is saved immediately as a new Craft Asset in the Assets field's real upload location. Image Creator then adds its relation to the existing field input and marks the form as changed. The relation is not permanent until the editor saves the entry or element. Existing source Assets are never overwritten.
 
 For an Assets field with a relation limit of one, adding a generated image replaces the relation shown in the input; it does not overwrite or delete the previously related Asset.
+
+## Queue processing
+
+Provider generation runs as a Craft queue job. The modal remains open and polls the user-bound request until the preview is ready; saving the approved preview as an Asset remains synchronous. This keeps slow provider requests out of control-panel web requests.
+
+Craft's default web queue runner can process jobs automatically. If `runQueueAutomatically` is disabled, run a worker such as:
+
+```bash
+php craft queue/listen
+```
+
+Resetting or closing the modal cancels a queued request. A provider call that has already started cannot necessarily be interrupted, but any result returned after cancellation is discarded and cannot be saved.
+
+Generation state is held in Craft's cache, and previews are stored temporarily under Craft's runtime temp directory. If the web process and queue worker run on different hosts or containers, configure shared cache, mutex, and runtime temp storage that both can access. The prepared prompt, including supplied context, is present in the serialized queue job until that job is removed.
 
 ## Ratios
 
@@ -140,7 +160,8 @@ Image Creator requests the closest supported provider output and validates the r
 - Provider credentials stay on the server and are never included in the browser configuration.
 - Generation and Asset-save endpoints require an authenticated control-panel request, JSON acceptance, CSRF validation, and the Image Creator permission.
 - Generated image bytes are validated server-side for MIME type, dimensions, and file size.
-- Preview files use random names and are referenced by short-lived tokens bound to the current user, destination field, element, and site.
+- Queue state and preview tokens are short-lived and bound to the current user and the canonical destination field or Asset folder.
+- The queue worker rechecks the user's current permissions and destination immediately before contacting the provider.
 - The browser cannot submit an arbitrary remote URL for Asset import.
 - Temporary generated files and tokens expire; saving or discarding a result removes the temporary result when possible.
 

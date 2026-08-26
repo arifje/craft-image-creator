@@ -23,6 +23,35 @@ final class ImageGenerator extends Component
         array $contextValues,
         string $extraContext,
     ): GeneratedImage {
+        $prompt = $this->preparePrompt($provider, $ratio, $contextValues, $extraContext);
+
+        return $this->generateFromPrompt($provider, $ratio, $prompt);
+    }
+
+    /** @param array<string, mixed> $contextValues */
+    public function preparePrompt(
+        string $provider,
+        string $ratio,
+        array $contextValues,
+        string $extraContext,
+    ): string {
+        $this->validateProviderAndRatio($provider, $ratio);
+
+        return $this->buildPrompt($ratio, $contextValues, $extraContext);
+    }
+
+    public function generateFromPrompt(string $provider, string $ratio, string $prompt): GeneratedImage
+    {
+        $this->validateProviderAndRatio($provider, $ratio);
+        if ($prompt === '' || mb_strlen($prompt) > self::MAX_PROMPT_LENGTH) {
+            throw new RuntimeException('The combined image prompt is invalid.');
+        }
+
+        return Plugin::getInstance()->providerRegistry->get($provider)->generate($prompt, $ratio);
+    }
+
+    private function validateProviderAndRatio(string $provider, string $ratio): void
+    {
         if (!in_array($ratio, self::RATIOS, true)) {
             throw new RuntimeException('The selected image ratio is invalid.');
         }
@@ -32,10 +61,6 @@ final class ImageGenerator extends Component
         if (!in_array($provider, $configuredProviders, true)) {
             throw new RuntimeException('The selected AI image provider is not configured.');
         }
-
-        $prompt = $this->buildPrompt($ratio, $contextValues, $extraContext);
-
-        return Plugin::getInstance()->providerRegistry->get($provider)->generate($prompt, $ratio);
     }
 
     /** @param array<string, mixed> $contextValues */

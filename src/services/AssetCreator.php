@@ -10,9 +10,11 @@ use Craft;
 use craft\base\ElementInterface;
 use craft\elements\Asset;
 use craft\elements\conditions\ElementCondition;
+use craft\elements\User;
 use craft\fields\Assets as AssetsField;
 use craft\helpers\Assets as AssetsHelper;
 use craft\helpers\ElementHelper;
+use craft\models\VolumeFolder;
 use RuntimeException;
 use Throwable;
 use yii\base\Component;
@@ -21,7 +23,64 @@ use yii\web\ForbiddenHttpException;
 final class AssetCreator extends Component
 {
     /** @param array<string, mixed> $target */
-    public function resolveTarget(array $target): AssetTarget
+    public function resolveTarget(array $target, ?User $user = null): AssetTarget
+    {
+        $user ??= Craft::$app->getUser()->getIdentity();
+        if (!$user instanceof User) {
+            throw new RuntimeException('A signed-in user is required to create an Asset.');
+        }
+
+        return ($target['type'] ?? 'field') === 'folder'
+            ? $this->resolveFolderTarget($target, $user)
+            : $this->resolveFieldTarget($target, $user);
+    }
+
+    /**
+     * @return array<int, array{label?: string, value?: int, optgroup?: string}>
+     */
+    public function getStandaloneFolderOptions(?User $user = null): array
+    {
+        $user ??= Craft::$app->getUser()->getIdentity();
+        if (!$user instanceof User) {
+            return [];
+        }
+
+        $options = [];
+        $assets = Craft::$app->getAssets();
+        foreach (Craft::$app->getVolumes()->getViewableVolumes() as $volume) {
+            if (!$user->can('saveAssets:' . $volume->uid)) {
+                continue;
+            }
+
+            $root = $assets->getRootFolderByVolumeId((int)$volume->id);
+            if (!$root || !$root->id || !$root->uid) {
+                continue;
+            }
+
+            $volumeName = Craft::t('site', (string)$volume->name);
+            $options[] = ['optgroup' => $volumeName];
+            $options[] = [
+                'label' => Craft::t('craft-image-creator', '{volume} root', [
+                    'volume' => $volumeName,
+                ]),
+                'value' => (int)$root->id,
+            ];
+            foreach ($assets->getAllDescendantFolders($root, 'path', false) as $folder) {
+                if (!$folder->id || !$folder->uid) {
+                    continue;
+                }
+                $options[] = [
+                    'label' => trim((string)$folder->path, '/') ?: (string)$folder->name,
+                    'value' => (int)$folder->id,
+                ];
+            }
+        }
+
+        return $options;
+    }
+
+    /** @param array<string, mixed> $target */
+    private function resolveFieldTarget(array $target, User $user): AssetTarget
     {
         $fieldUid = trim((string)($target['fieldUid'] ?? ''));
         $elementId = filter_var($target['elementId'] ?? null, FILTER_VALIDATE_INT);
@@ -63,8 +122,7 @@ final class AssetCreator extends Component
 
         /** @var ElementInterface|null $owner */
         $owner = Craft::$app->getElements()->getElementById((int)$elementId, $elementType, (int)$siteId);
-        $user = Craft::$app->getUser()->getIdentity();
-        if (!$owner instanceof ElementInterface || !$user) {
+        if (!$owner instanceof ElementInterface) {
             throw new RuntimeException('The field owner could not be found. Save the element and try again.');
         }
 
@@ -74,7 +132,7 @@ final class AssetCreator extends Component
         if (
             $rootOwner::isLocalized() &&
             Craft::$app->getIsMultiSite() &&
-            !Craft::$app->getUser()->checkPermission('editSite:' . $rootOwner->getSite()->uid)
+            !$user->can('editSite:' . $rootOwner->getSite()->uid)
         ) {
             throw new ForbiddenHttpException('You are not allowed to edit content for this site.');
         }
@@ -102,7 +160,7 @@ final class AssetCreator extends Component
             throw new RuntimeException('The field upload location could not be resolved.');
         }
         $volume = $folder->getVolume();
-        if (!Craft::$app->getUser()->checkPermission('saveAssets:' . $volume->uid)) {
+        if (!$user->can('saveAssets:' . $volume->uid)) {
             throw new ForbiddenHttpException('You are not allowed to save Assets in this volume.');
         }
 
@@ -111,7 +169,52 @@ final class AssetCreator extends Component
             $selectionCondition->referenceElement = $owner;
         }
 
-        return new AssetTarget($owner, $field, $folder, $selectionCondition);
+        if (!$folder->uid) {
+            throw new RuntimeException('The field upload location is invalid.');
+        }
+
+        return new AssetTarget($folder, $selectionCondition, [
+            'type' => 'field',
+            'fieldUid' => (string)$field->uid,
+            'elementId' => (int)$owner->getId(),
+            'siteId' => (int)$owner->getSite()->id,
+            'elementType' => get_class($owner),
+            'folderUid' => (string)$folder->uid,
+            'volumeUid' => (string)$volume->uid,
+        ]);
+    }
+
+    /** @param array<string, mixed> $target */
+    private function resolveFolderTarget(array $target, User $user): AssetTarget
+    {
+        $folderId = filter_var($target['folderId'] ?? null, FILTER_VALIDATE_INT);
+        $folderUid = trim((string)($target['folderUid'] ?? ''));
+        if (($folderId === false || $folderId < 1) && $folderUid === '') {
+            throw new RuntimeException('Choose an Asset destination folder.');
+        }
+
+        $assets = Craft::$app->getAssets();
+        $folder = $folderUid !== ''
+            ? $assets->getFolderByUid($folderUid)
+            : $assets->getFolderById((int)$folderId);
+        if (!$folder instanceof VolumeFolder || !$folder->id || !$folder->uid || !$folder->volumeId) {
+            throw new RuntimeException('The selected Asset destination folder no longer exists.');
+        }
+
+        $volume = $folder->getVolume();
+        $expectedVolumeUid = trim((string)($target['volumeUid'] ?? ''));
+        if ($expectedVolumeUid !== '' && $expectedVolumeUid !== (string)$volume->uid) {
+            throw new RuntimeException('The selected Asset destination has changed. Choose it again.');
+        }
+        if (!$user->can('viewAssets:' . $volume->uid) || !$user->can('saveAssets:' . $volume->uid)) {
+            throw new ForbiddenHttpException('You are not allowed to save Assets in this folder.');
+        }
+
+        return new AssetTarget($folder, null, [
+            'type' => 'folder',
+            'folderUid' => (string)$folder->uid,
+            'volumeUid' => (string)$volume->uid,
+        ]);
     }
 
     /** @param array<string, mixed> $target */

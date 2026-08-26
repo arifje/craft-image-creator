@@ -1,4 +1,7 @@
 import {
+	blankContextFields,
+	generationPollDelay,
+	generationState,
 	readContextFields,
 	requestErrorMessage,
 	responsePayload,
@@ -47,12 +50,16 @@ export class ImageCreatorModal {
 		this.config = config;
 		this.onAssetReady = onAssetReady;
 		this.id = `craft-image-creator-${++modalCount}`;
-		this.initialContext = readContextFields(
-			context.context,
-			Array.isArray(config.contextFields) ? config.contextFields : []
-		);
+		const contextFields = Array.isArray(config.contextFields) ? config.contextFields : [];
+		this.initialContext = context.standalone
+			? blankContextFields(contextFields)
+			: readContextFields(context.context, contextFields);
 		this.result = null;
 		this.savedAsset = null;
+		this.pendingToken = null;
+		this.generationSequence = 0;
+		this.pollTimer = null;
+		this.resolvePollDelay = null;
 		this.busy = '';
 		this.destroyed = false;
 		this.build();
@@ -84,7 +91,9 @@ export class ImageCreatorModal {
 			element('div', {}, [
 				element('h1', {id: `${this.id}-title`, text: translate('Create with AI')}),
 				element('p', {
-					text: translate('Create an image from the configured prompt and this element’s context.'),
+					text: translate(this.context.standalone
+						? 'Create a standalone Asset from your prompt and context.'
+						: 'Create an image from the configured prompt and this element’s context.'),
 				}),
 			]),
 			closeButton,
@@ -116,7 +125,7 @@ export class ImageCreatorModal {
 		this.addButton = element('button', {
 			type: 'button',
 			className: 'btn submit',
-			text: translate('Add to field'),
+			text: translate(this.context.standalone ? 'Save Asset' : 'Add to field'),
 		});
 		this.addButton.disabled = true;
 		this.addButton.addEventListener('click', () => this.addToField());
@@ -292,6 +301,7 @@ export class ImageCreatorModal {
 			this.garnishModal = new Garnish.Modal(this.$form, {
 				hideOnEsc: false,
 				hideOnShadeClick: false,
+				resizable: true,
 				triggerElement: this.context.button,
 				onFadeOut: () => this.destroy(),
 			});
@@ -321,6 +331,8 @@ export class ImageCreatorModal {
 			return;
 		}
 
+		const sequence = ++this.generationSequence;
+		let token = '';
 		this.setError('');
 		this.setBusy('generating');
 		try {
@@ -331,16 +343,30 @@ export class ImageCreatorModal {
 				extraContext: this.extraInput.value,
 				target: this.context.target,
 			});
-			const result = payload.result ?? payload;
+			token = String(payload.generation?.token || '');
+			if (!token) {
+				throw new Error(translate('The server did not return an image generation request.'));
+			}
+			if (this.destroyed || sequence !== this.generationSequence) {
+				this.cancelToken(token);
+				return;
+			}
+			this.pendingToken = token;
+
+			const result = await this.waitForGeneration(token, sequence);
+			if (!result) {
+				return;
+			}
 			if (!result.token || !result.previewUrl) {
 				throw new Error(translate('The server did not return a generated image.'));
 			}
-			if (this.destroyed) {
-				this.discardToken(result.token);
+			if (this.destroyed || sequence !== this.generationSequence) {
+				this.cancelToken(token);
 				return;
 			}
 
 			const oldToken = this.result?.token;
+			this.pendingToken = null;
 			this.result = result;
 			this.savedAsset = null;
 			this.previewImage.src = result.previewUrl;
@@ -348,16 +374,94 @@ export class ImageCreatorModal {
 			this.previewPlaceholder.hidden = true;
 			this.filenameField.hidden = false;
 			if (oldToken && oldToken !== result.token) {
-				this.discardToken(oldToken);
+				this.cancelToken(oldToken);
 			}
 		} catch (error) {
-			if (!this.destroyed) {
+			if (token) {
+				this.cancelToken(token);
+			}
+			if (!this.destroyed && sequence === this.generationSequence) {
 				this.setError(requestErrorMessage(error, translate('The image could not be generated.')));
 			}
 		} finally {
-			if (!this.destroyed) {
+			if (this.pendingToken === token) {
+				this.pendingToken = null;
+			}
+			if (!this.destroyed && sequence === this.generationSequence) {
 				this.setBusy('');
 			}
+		}
+	}
+
+	async waitForGeneration(token, sequence) {
+		let attempt = 0;
+		let transientFailures = 0;
+		const deadline = Date.now() + (55 * 60 * 1000);
+
+		while (
+			!this.destroyed
+			&& sequence === this.generationSequence
+			&& this.pendingToken === token
+		) {
+			await this.waitForPoll(generationPollDelay(attempt++));
+			if (
+				this.destroyed
+				|| sequence !== this.generationSequence
+				|| this.pendingToken !== token
+			) {
+				return null;
+			}
+
+			let payload;
+			try {
+				payload = await actionRequest(this.config.routes.status, {token});
+				transientFailures = 0;
+			} catch (error) {
+				const httpStatus = Number(error?.response?.status || 0);
+				if ((httpStatus >= 400 && httpStatus < 500) || ++transientFailures >= 4) {
+					throw error;
+				}
+				continue;
+			}
+
+			const state = generationState(payload, token);
+			this.setGenerationStatus(state.status);
+			if (state.status === 'complete') {
+				return state.result;
+			}
+			if (state.status === 'failed' || state.status === 'cancelled') {
+				throw new Error(state.error || translate('The image generation failed. Try again.'));
+			}
+			if (Date.now() >= deadline) {
+				throw new Error(translate('The image generation request expired. Generate it again.'));
+			}
+		}
+
+		return null;
+	}
+
+	waitForPoll(delay) {
+		this.cancelPollDelay();
+
+		return new Promise((resolve) => {
+			this.resolvePollDelay = resolve;
+			this.pollTimer = window.setTimeout(() => {
+				this.pollTimer = null;
+				this.resolvePollDelay = null;
+				resolve();
+			}, delay);
+		});
+	}
+
+	cancelPollDelay() {
+		if (this.pollTimer !== null) {
+			window.clearTimeout(this.pollTimer);
+			this.pollTimer = null;
+		}
+		if (this.resolvePollDelay) {
+			const resolve = this.resolvePollDelay;
+			this.resolvePollDelay = null;
+			resolve();
 		}
 	}
 
@@ -384,11 +488,15 @@ export class ImageCreatorModal {
 			}
 
 			await this.onAssetReady(this.context, this.savedAsset);
-			Craft.cp.displayNotice(translate('Image created and added to the field.'));
+			Craft.cp.displayNotice(translate(this.context.standalone
+				? 'Image created and saved.'
+				: 'Image created and added to the field.'));
 			this.close(true);
 		} catch (error) {
 			const fallback = this.savedAsset
-				? translate('The Asset was saved, but it could not be added to this field. Try Add to field again.')
+				? translate(this.context.standalone
+					? 'The Asset was saved, but the page could not be updated.'
+					: 'The Asset was saved, but it could not be added to this field. Try Add to field again.')
 				: translate('The image could not be saved.');
 			this.setError(requestErrorMessage(error, fallback));
 		} finally {
@@ -399,13 +507,19 @@ export class ImageCreatorModal {
 	}
 
 	reset() {
-		if (this.busy) {
+		if (this.busy === 'saving') {
 			return;
 		}
 
-		if (this.result?.token) {
-			this.discardToken(this.result.token);
+		this.generationSequence++;
+		this.cancelPollDelay();
+		if (this.pendingToken) {
+			this.cancelToken(this.pendingToken);
 		}
+		if (this.result?.token) {
+			this.cancelToken(this.result.token);
+		}
+		this.pendingToken = null;
 		this.result = null;
 		this.savedAsset = null;
 		this.previewImage.removeAttribute('src');
@@ -429,7 +543,7 @@ export class ImageCreatorModal {
 			input.checked = index === 0;
 		});
 		this.setError('');
-		this.refreshControls();
+		this.setBusy('');
 	}
 
 	setBusy(stage) {
@@ -442,7 +556,9 @@ export class ImageCreatorModal {
 		if (stage === 'generating') {
 			this.previewPlaceholder.hidden = false;
 			spinner.hidden = false;
-			this.previewPlaceholder.querySelector('strong').textContent = translate('Generating image…');
+			this.previewPlaceholder.querySelector('strong').textContent = translate(
+				'Waiting for image generation…'
+			);
 		} else {
 			spinner.hidden = true;
 			this.previewPlaceholder.querySelector('strong').textContent = translate(
@@ -452,11 +568,23 @@ export class ImageCreatorModal {
 			this.previewImage.hidden = !(this.result || this.savedAsset);
 		}
 		this.status.textContent = stage === 'generating'
-			? translate('Generating image…')
+			? translate('Waiting for image generation…')
 			: stage === 'saving'
 				? translate('Saving Asset…')
 				: '';
 		this.refreshControls();
+	}
+
+	setGenerationStatus(status) {
+		if (this.busy !== 'generating') {
+			return;
+		}
+
+		const message = status === 'queued'
+			? translate('Waiting for image generation…')
+			: translate('Generating image…');
+		this.previewPlaceholder.querySelector('strong').textContent = message;
+		this.status.textContent = message;
 	}
 
 	refreshControls() {
@@ -472,9 +600,9 @@ export class ImageCreatorModal {
 		this.filenameInput.disabled = disabled;
 		this.generateButton.disabled = disabled || !this.providerSelect.value;
 		this.addButton.disabled = disabled || (!this.result && !this.savedAsset);
-		this.resetButton.disabled = disabled;
-		this.closeButton.disabled = disabled;
-		this.footerCloseButton.disabled = disabled;
+		this.resetButton.disabled = this.busy === 'saving';
+		this.closeButton.disabled = this.busy === 'saving';
+		this.footerCloseButton.disabled = this.busy === 'saving';
 	}
 
 	setError(message) {
@@ -482,16 +610,17 @@ export class ImageCreatorModal {
 		this.error.hidden = !message;
 	}
 
-	discardToken(token) {
-		if (!token || !this.config.routes.discard) {
+	cancelToken(token) {
+		const route = this.config.routes.cancel || this.config.routes.discard;
+		if (!token || !route) {
 			return Promise.resolve();
 		}
 
-		return actionRequest(this.config.routes.discard, {token}).catch(() => undefined);
+		return actionRequest(route, {token}).catch(() => undefined);
 	}
 
 	close(assetAdded = false) {
-		if (this.busy && !assetAdded) {
+		if (this.busy === 'saving' && !assetAdded) {
 			return;
 		}
 		// Garnish restores focus synchronously during hide() in Craft 4, so the
@@ -510,9 +639,15 @@ export class ImageCreatorModal {
 			return;
 		}
 		this.destroyed = true;
-		if (this.result?.token) {
-			this.discardToken(this.result.token);
+		this.generationSequence++;
+		this.cancelPollDelay();
+		if (this.pendingToken) {
+			this.cancelToken(this.pendingToken);
 		}
+		if (this.result?.token) {
+			this.cancelToken(this.result.token);
+		}
+		this.pendingToken = null;
 		this.result = null;
 		this.backdrop?.remove();
 		const garnishModal = this.garnishModal;
