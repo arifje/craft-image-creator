@@ -5,14 +5,16 @@ declare(strict_types=1);
 namespace arifje\craftimagecreator\services\providers;
 
 use Craft;
+use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\GuzzleException;
 use GuzzleHttp\Exception\RequestException;
-use RuntimeException;
+use Psr\Http\Message\ResponseInterface;
 use Throwable;
 
 abstract class AbstractProvider implements ProviderInterface
 {
     private const MAX_BASE64_LENGTH = 36_000_000;
+    private const MAX_ERROR_RESPONSE_LENGTH = 65_536;
 
     /** @param array<string, string> $headers
      *  @param array<string, mixed> $payload
@@ -33,21 +35,35 @@ abstract class AbstractProvider implements ProviderInterface
                 'json' => $payload,
             ]);
         } catch (RequestException $exception) {
-            $message = $this->responseError($exception) ?: $exception->getMessage();
-            Craft::warning("{$providerLabel} image generation failed: {$message}", __METHOD__);
-            throw new RuntimeException("{$providerLabel} could not generate the image: {$message}", 0, $exception);
+            $response = $exception->getResponse();
+            if ($response === null) {
+                throw ProviderException::fromTransport(
+                    $providerLabel,
+                    $this->isTimeout($exception)
+                );
+            }
+
+            throw ProviderException::fromHttpResponse(
+                $providerLabel,
+                $response->getStatusCode(),
+                $this->errorPayload($response),
+                $this->requestId($response->getHeaders()),
+                $this->secrets($headers)
+            );
         } catch (GuzzleException $exception) {
-            Craft::warning("{$providerLabel} image generation failed: {$exception->getMessage()}", __METHOD__);
-            throw new RuntimeException("{$providerLabel} could not generate the image.", 0, $exception);
+            throw ProviderException::fromTransport(
+                $providerLabel,
+                $this->isTimeout($exception)
+            );
         }
 
         try {
             $data = json_decode((string)$response->getBody(), true, 512, JSON_THROW_ON_ERROR);
-        } catch (Throwable $exception) {
-            throw new RuntimeException("{$providerLabel} returned an invalid response.", 0, $exception);
+        } catch (Throwable) {
+            throw new ProviderException("{$providerLabel} returned an invalid response.");
         }
         if (!is_array($data)) {
-            throw new RuntimeException("{$providerLabel} returned an invalid response.");
+            throw new ProviderException("{$providerLabel} returned an invalid response.");
         }
 
         return $data;
@@ -61,35 +77,93 @@ abstract class AbstractProvider implements ProviderInterface
             $encoded = $comma === false ? '' : substr($encoded, $comma + 1);
         }
         if ($encoded === '' || strlen($encoded) > self::MAX_BASE64_LENGTH) {
-            throw new RuntimeException("{$providerLabel} returned an image with an invalid size.");
+            throw new ProviderException("{$providerLabel} returned an image with an invalid size.");
         }
 
         $bytes = base64_decode($encoded, true);
         if (!is_string($bytes) || $bytes === '') {
-            throw new RuntimeException("{$providerLabel} returned invalid image data.");
+            throw new ProviderException("{$providerLabel} returned invalid image data.");
         }
 
         return $bytes;
     }
 
-    private function responseError(RequestException $exception): string
+    private function isTimeout(GuzzleException $exception): bool
     {
-        $response = $exception->getResponse();
-        if (!$response) {
-            return '';
+        if (!$exception instanceof ConnectException) {
+            return false;
+        }
+
+        $context = $exception->getHandlerContext();
+
+        return (int)($context['errno'] ?? 0) === 28;
+    }
+
+    private function errorPayload(ResponseInterface $response): mixed
+    {
+        try {
+            $body = $response->getBody();
+            $size = $body->getSize();
+            if ($size !== null && $size > self::MAX_ERROR_RESPONSE_LENGTH) {
+                return null;
+            }
+            if ($body->isSeekable()) {
+                $body->rewind();
+            }
+            $contents = $body->read(self::MAX_ERROR_RESPONSE_LENGTH + 1);
+        } catch (Throwable) {
+            return null;
+        }
+
+        if (strlen($contents) > self::MAX_ERROR_RESPONSE_LENGTH) {
+            return null;
         }
 
         try {
-            $data = json_decode((string)$response->getBody(), true, 32, JSON_THROW_ON_ERROR);
+            return json_decode($contents, true, 32, JSON_THROW_ON_ERROR);
         } catch (Throwable) {
-            return '';
+            // Non-JSON provider bodies are never exposed to control-panel users.
+            return null;
         }
-        if (!is_array($data)) {
-            return '';
+    }
+
+    /**
+     * @param array<string, array<int, string>> $headers
+     */
+    private function requestId(array $headers): string
+    {
+        foreach (['x-request-id', 'request-id', 'x-correlation-id'] as $name) {
+            foreach ($headers as $headerName => $values) {
+                if (strtolower($headerName) === $name && isset($values[0])) {
+                    return $values[0];
+                }
+            }
         }
 
-        $message = $data['error']['message'] ?? $data['message'] ?? $data['detail'] ?? '';
+        return '';
+    }
 
-        return is_scalar($message) ? trim((string)$message) : '';
+    /**
+     * @param array<string, string> $headers
+     * @return array<int, string>
+     */
+    private function secrets(array $headers): array
+    {
+        $secrets = [];
+        foreach ($headers as $name => $value) {
+            if (!in_array(strtolower($name), ['authorization', 'x-api-key', 'x-goog-api-key'], true)) {
+                continue;
+            }
+
+            $value = trim($value);
+            if ($value !== '') {
+                $secrets[] = $value;
+            }
+            if (preg_match('/\ABearer\s+(.+)\z/i', $value, $matches) === 1) {
+                $secrets[] = trim($matches[1]);
+            }
+        }
+
+        return array_values(array_unique(array_filter($secrets)));
     }
 }

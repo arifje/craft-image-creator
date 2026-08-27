@@ -72,6 +72,8 @@ $GEMINI_API_KEY
 
 Only providers with both a resolved API key and model are offered in the creation modal. Provider access, model availability, billing, safety rules, and request limits are managed by the provider account.
 
+When a provider rejects a generation request, the modal shows a sanitized diagnostic with the provider, HTTP status, safe provider detail, and request ID when available. API keys, bearer tokens, non-JSON response bodies, raw request/response payloads, and unexpected internal exception details are never returned to the browser. Provider validation text may repeat part of the context the editor just submitted, so HTTP response detail is shown only for statuses `400`, `409`, `413`, `415`, and `422`; other statuses use curated summaries. Explicit refusal messages in otherwise successful responses are sanitized in the same way. Connection failures and timeouts include retry or outbound-network guidance; full unexpected failures remain available only through Craft's server logs.
+
 The current default models are:
 
 | Provider | Default model | API documentation |
@@ -197,8 +199,9 @@ npm run build
 Run the local checks before a release:
 
 ```bash
-composer validate --strict
+composer --no-plugins validate --strict --no-check-version --no-check-publish
 php tests/static-contract.php
+php tests/provider-errors.php
 vendor/bin/phpstan analyse
 vendor/bin/ecs check
 npm run check

@@ -1,5 +1,11 @@
 # Release Notes
 
+## 1.0.4 - 2026-08-27
+
+- Shows actionable, sanitized provider failures in the creation modal, including safe HTTP status, provider error, and request-ID details where available.
+- Supports xAI's scalar error response format and removes the redundant Grok `quality` parameter while retaining xAI's documented medium-quality default.
+- Redacts API keys and token patterns, suppresses non-JSON response bodies, and keeps unexpected internal errors generic while retaining safe server logging.
+
 ## 1.0.3 - 2026-08-26
 
 - Moves the base image prompt to **Utilities -> Image Creator Prompt**, where authorized users can update it directly in each environment without deploying plugin settings or project config.

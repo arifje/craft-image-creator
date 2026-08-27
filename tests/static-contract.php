@@ -30,7 +30,7 @@ $read = static function(string $path) use (&$failures): string {
 $composerJson = json_decode($read($root . '/composer.json'), true);
 $assert(is_array($composerJson), 'composer.json must contain valid JSON.');
 if (is_array($composerJson)) {
-    $assert(($composerJson['version'] ?? null) === '1.0.3', 'Composer package version must be 1.0.3.');
+    $assert(($composerJson['version'] ?? null) === '1.0.4', 'Composer package version must be 1.0.4.');
     $assert(
         ($composerJson['extra']['handle'] ?? null) === 'craft-image-creator',
         'The Craft plugin handle must remain craft-image-creator.'
@@ -44,14 +44,14 @@ if (is_array($composerJson)) {
 $packageJson = json_decode($read($root . '/package.json'), true);
 $packageLock = json_decode($read($root . '/package-lock.json'), true);
 $assert(
-    is_array($packageJson) && ($packageJson['version'] ?? null) === '1.0.3',
-    'JavaScript package version must be 1.0.3.'
+    is_array($packageJson) && ($packageJson['version'] ?? null) === '1.0.4',
+    'JavaScript package version must be 1.0.4.'
 );
 $assert(
     is_array($packageLock) &&
-    ($packageLock['version'] ?? null) === '1.0.3' &&
-    ($packageLock['packages']['']['version'] ?? null) === '1.0.3',
-    'JavaScript lockfile versions must be 1.0.3.'
+    ($packageLock['version'] ?? null) === '1.0.4' &&
+    ($packageLock['packages']['']['version'] ?? null) === '1.0.4',
+    'JavaScript lockfile versions must be 1.0.4.'
 );
 
 $generatorSource = $read($root . '/src/services/ImageGenerator.php');
@@ -113,6 +113,9 @@ $assert(
 $controllerSource = $read($root . '/src/controllers/CreatorController.php');
 $jobSource = $read($root . '/src/jobs/GenerateImage.php');
 $requestSource = $read($root . '/src/services/GenerationRequests.php');
+$abstractProviderSource = $read($root . '/src/services/providers/AbstractProvider.php');
+$providerExceptionSource = $read($root . '/src/services/providers/ProviderException.php');
+$xAiProviderSource = $read($root . '/src/services/providers/XAiProvider.php');
 $pluginSource = $read($root . '/src/Plugin.php');
 $promptControllerSource = $read($root . '/src/controllers/PromptController.php');
 $promptsSource = $read($root . '/src/services/Prompts.php');
@@ -188,6 +191,44 @@ $assert(
 $assert(
     str_contains($requestSource, "'userId' => \$userId") && str_contains($requestSource, 'getMutex()'),
     'Generation state must remain user-bound and race-safe.'
+);
+$assert(
+    str_contains($providerExceptionSource, 'fromHttpResponse(') &&
+    str_contains($providerExceptionSource, 'fromResult(') &&
+    str_contains($providerExceptionSource, 'fromTransport(') &&
+    str_contains($providerExceptionSource, '[redacted]') &&
+    str_contains($providerExceptionSource, 'MAX_PUBLIC_MESSAGE_LENGTH'),
+    'Provider errors must be categorized, length-limited, and redacted before browser exposure.'
+);
+$assert(
+    str_contains($abstractProviderSource, 'ProviderException::fromHttpResponse(') &&
+    str_contains($abstractProviderSource, 'MAX_ERROR_RESPONSE_LENGTH') &&
+    str_contains($abstractProviderSource, '->read(self::MAX_ERROR_RESPONSE_LENGTH + 1)') &&
+    str_contains($abstractProviderSource, '$this->secrets($headers)') &&
+    !str_contains($abstractProviderSource, '$exception->getMessage()'),
+    'Provider HTTP failures must use the sanitized boundary instead of raw transport messages.'
+);
+$assert(
+    str_contains($jobSource, '$exception instanceof ProviderException') &&
+    str_contains($jobSource, '$exception->getPublicMessage()') &&
+    str_contains($jobSource, "'The image generation failed. Try again.'"),
+    'Queued jobs must expose only typed provider failures and keep unexpected errors generic.'
+);
+$assert(
+    !str_contains($xAiProviderSource, "'quality' =>") &&
+    str_contains($xAiProviderSource, "'response_format' => 'b64_json'"),
+    'Grok requests must use the strict REST payload while retaining base64 output.'
+);
+$assert(
+    is_file($root . '/tests/provider-errors.php'),
+    'Provider error parsing and credential redaction must have focused regression checks.'
+);
+$assert(
+    str_contains($controllerSource, "\$payload['generation']['error'] = (string)\$generation['error']") &&
+    str_contains($modalSource, 'throw new Error(state.error ||') &&
+    str_contains($modalSource, 'this.setError(requestErrorMessage(') &&
+    str_contains($modalSource, 'this.error.textContent = message'),
+    'Safe queued provider errors must reach the modal through a text-only rendering sink.'
 );
 
 $assert(str_contains($modalSource, 'resizable: true'), 'The image creator modal must remain resizable.');

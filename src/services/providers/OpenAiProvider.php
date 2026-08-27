@@ -6,7 +6,6 @@ namespace arifje\craftimagecreator\services\providers;
 
 use arifje\craftimagecreator\models\Settings;
 use arifje\craftimagecreator\Plugin;
-use RuntimeException;
 
 final class OpenAiProvider extends AbstractProvider
 {
@@ -23,7 +22,7 @@ final class OpenAiProvider extends AbstractProvider
         $apiKey = $settings->getResolvedApiKey(Settings::PROVIDER_OPENAI);
         $model = $settings->getResolvedModel(Settings::PROVIDER_OPENAI);
         if ($apiKey === '' || $model === '') {
-            throw new RuntimeException('OpenAI is not configured.');
+            throw new ProviderException('OpenAI is not configured.');
         }
 
         $data = $this->postJson(
@@ -44,8 +43,8 @@ final class OpenAiProvider extends AbstractProvider
         );
 
         $encoded = $data['data'][0]['b64_json'] ?? '';
-        if (!is_string($encoded)) {
-            throw new RuntimeException('OpenAI returned no generated image.');
+        if (!is_string($encoded) || trim($encoded) === '') {
+            throw ProviderException::fromResult('OpenAI', $data, [$apiKey]);
         }
 
         return new GeneratedImage($this->decodeBase64($encoded, 'OpenAI'), 'image/jpeg');

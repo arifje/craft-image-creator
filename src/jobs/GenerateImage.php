@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace arifje\craftimagecreator\jobs;
 
 use arifje\craftimagecreator\Plugin;
+use arifje\craftimagecreator\services\providers\ProviderException;
 use Craft;
 use craft\elements\User;
 use craft\i18n\Translation;
@@ -91,13 +92,19 @@ final class GenerateImage extends BaseJob
                 $plugin->generationRequests->fail(
                     $this->token,
                     $this->userId,
-                    'The image generation failed. Try again.'
+                    $exception instanceof ProviderException
+                        ? $exception->getPublicMessage()
+                        : 'The image generation failed. Try again.'
                 );
             } catch (Throwable $statusException) {
                 Craft::$app->getErrorHandler()->logException($statusException);
             }
 
-            Craft::$app->getErrorHandler()->logException($exception);
+            if ($exception instanceof ProviderException) {
+                Craft::warning($exception->getMessage(), __METHOD__);
+            } else {
+                Craft::$app->getErrorHandler()->logException($exception);
+            }
         }
     }
 

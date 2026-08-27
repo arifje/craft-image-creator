@@ -6,7 +6,6 @@ namespace arifje\craftimagecreator\services\providers;
 
 use arifje\craftimagecreator\models\Settings;
 use arifje\craftimagecreator\Plugin;
-use RuntimeException;
 
 final class GoogleProvider extends AbstractProvider
 {
@@ -16,7 +15,7 @@ final class GoogleProvider extends AbstractProvider
         $apiKey = $settings->getResolvedApiKey(Settings::PROVIDER_GOOGLE);
         $model = $settings->getResolvedModel(Settings::PROVIDER_GOOGLE);
         if ($apiKey === '' || $model === '') {
-            throw new RuntimeException('Google Gemini is not configured.');
+            throw new ProviderException('Google Gemini is not configured.');
         }
 
         $data = $this->postJson(
@@ -50,7 +49,7 @@ final class GoogleProvider extends AbstractProvider
                     continue;
                 }
                 $encoded = $content['data'] ?? '';
-                if (!is_string($encoded)) {
+                if (!is_string($encoded) || trim($encoded) === '') {
                     continue;
                 }
                 $mimeType = $content['mime_type'] ?? 'image/jpeg';
@@ -62,6 +61,6 @@ final class GoogleProvider extends AbstractProvider
             }
         }
 
-        throw new RuntimeException('Google Gemini returned no generated image.');
+        throw ProviderException::fromResult('Google Gemini', $data, [$apiKey]);
     }
 }

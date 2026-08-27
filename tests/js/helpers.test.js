@@ -11,6 +11,7 @@ import {
 	matchesFieldName,
 	matchesNativeFieldName,
 	renderElementRequest,
+	requestErrorMessage,
 	responsePayload,
 	standaloneTarget,
 } from '../../resources/js/helpers.js';
@@ -43,6 +44,18 @@ test('generationState validates the user-bound operation token', () => {
 		() => generationState({generation: {token: 'abc', status: 'unknown'}}, 'abc'),
 		/invalid image generation status/
 	);
+});
+
+test('generation errors reach the modal without losing safe provider details', () => {
+	const detail = 'Grok rejected the image request (HTTP 400): Prompt is too long.';
+	assert.deepEqual(generationState({
+		generation: {token: 'abc', status: 'failed', error: detail},
+	}, 'abc'), {
+		status: 'failed',
+		error: detail,
+		result: null,
+	});
+	assert.equal(requestErrorMessage(new Error(detail), 'Fallback'), detail);
 });
 
 test('standaloneTarget leaves destination selection to the server', () => {
