@@ -30,7 +30,7 @@ $read = static function(string $path) use (&$failures): string {
 $composerJson = json_decode($read($root . '/composer.json'), true);
 $assert(is_array($composerJson), 'composer.json must contain valid JSON.');
 if (is_array($composerJson)) {
-    $assert(($composerJson['version'] ?? null) === '1.0.4', 'Composer package version must be 1.0.4.');
+    $assert(($composerJson['version'] ?? null) === '1.0.5', 'Composer package version must be 1.0.5.');
     $assert(
         ($composerJson['extra']['handle'] ?? null) === 'craft-image-creator',
         'The Craft plugin handle must remain craft-image-creator.'
@@ -44,14 +44,14 @@ if (is_array($composerJson)) {
 $packageJson = json_decode($read($root . '/package.json'), true);
 $packageLock = json_decode($read($root . '/package-lock.json'), true);
 $assert(
-    is_array($packageJson) && ($packageJson['version'] ?? null) === '1.0.4',
-    'JavaScript package version must be 1.0.4.'
+    is_array($packageJson) && ($packageJson['version'] ?? null) === '1.0.5',
+    'JavaScript package version must be 1.0.5.'
 );
 $assert(
     is_array($packageLock) &&
-    ($packageLock['version'] ?? null) === '1.0.4' &&
-    ($packageLock['packages']['']['version'] ?? null) === '1.0.4',
-    'JavaScript lockfile versions must be 1.0.4.'
+    ($packageLock['version'] ?? null) === '1.0.5' &&
+    ($packageLock['packages']['']['version'] ?? null) === '1.0.5',
+    'JavaScript lockfile versions must be 1.0.5.'
 );
 
 $generatorSource = $read($root . '/src/services/ImageGenerator.php');
@@ -250,9 +250,9 @@ $assert(
 );
 
 $assert(
-    str_contains($pluginSource, 'EVENT_REGISTER_CP_NAV_ITEMS') &&
+    !str_contains($pluginSource, "'url' => 'image-creator-ai'") &&
     str_contains($pluginSource, "\$event->rules['image-creator-ai']"),
-    'The standalone Image Creator must be registered in the CP navigation.'
+    'The standalone Image Creator route must remain available without a CP navigation item.'
 );
 $assert(
     is_file($root . '/src/templates/_creator.twig') && str_contains($mainSource, 'installStandaloneCreator'),

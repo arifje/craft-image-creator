@@ -1,6 +1,6 @@
 # Image Creator for Craft CMS
 
-Image Creator adds a standalone **Image Creator** section and a **Create with AI** action to selected image-capable Assets fields in the Craft control panel. Editors can combine configured context with one-off instructions, generate an image with OpenAI, Grok (xAI), or Google Gemini, and save the result as a normal Craft Asset.
+Image Creator adds a **Create with AI** action to selected image-capable Assets fields in the Craft control panel. Editors can combine configured context with one-off instructions, generate an image with OpenAI, Grok (xAI), or Google Gemini, and save the result as a normal Craft Asset. A standalone creator remains available by its direct control-panel URL without adding another item to the sidebar.
 
 The plugin supports Craft CMS 4.4 and Craft CMS 5, including Assets and context fields nested in Matrix blocks.
 
@@ -122,7 +122,7 @@ Every request checks the plugin permission and the relevant `viewAssets:<volumeU
 
 ## Standalone workflow
 
-1. Open **Image Creator** in the control-panel sidebar.
+1. Open the standalone `image-creator-ai` control-panel URL directly; it is intentionally not listed in the sidebar.
 2. Select **Create image**.
 3. Fill in any configured context fields and optional extra context.
 4. Choose a configured provider and image ratio, then generate and review the image.

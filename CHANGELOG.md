@@ -1,5 +1,10 @@
 # Release Notes
 
+## 1.0.5 - 2026-09-02
+
+- Removes the standalone Image Creator item from the control-panel sidebar.
+- Keeps the standalone creator available by direct control-panel URL, without changing the Assets-field **Create with AI** workflow.
+
 ## 1.0.4 - 2026-08-27
 
 - Shows actionable, sanitized provider failures in the creation modal, including safe HTTP status, provider error, and request-ID details where available.

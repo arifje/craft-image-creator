@@ -21,14 +21,12 @@ use craft\base\Model;
 use craft\base\Plugin as BasePlugin;
 use craft\events\DefineFieldHtmlEvent;
 use craft\events\RegisterComponentTypesEvent;
-use craft\events\RegisterCpNavItemsEvent;
 use craft\events\RegisterUrlRulesEvent;
 use craft\events\RegisterUserPermissionsEvent;
 use craft\fields\Assets;
 use craft\helpers\Json;
 use craft\services\UserPermissions;
 use craft\services\Utilities;
-use craft\web\twig\variables\Cp;
 use craft\web\UrlManager;
 use craft\web\View;
 use yii\base\Event;
@@ -73,7 +71,6 @@ final class Plugin extends BasePlugin
         parent::init();
 
         $this->registerCpRoutes();
-        $this->registerCpNav();
         $this->registerPermissions();
         $this->registerUtilities();
 
@@ -207,25 +204,6 @@ final class Plugin extends BasePlugin
                 $event->rules['image-creator-ai/api/save'] = 'craft-image-creator/creator/save';
                 $event->rules['image-creator-ai/api/discard'] = 'craft-image-creator/creator/discard';
                 $event->rules['image-creator-ai/api/preview'] = 'craft-image-creator/creator/preview';
-            }
-        );
-    }
-
-    private function registerCpNav(): void
-    {
-        Event::on(
-            Cp::class,
-            Cp::EVENT_REGISTER_CP_NAV_ITEMS,
-            static function(RegisterCpNavItemsEvent $event): void {
-                if (!Craft::$app->getUser()->checkPermission(self::PERMISSION_USE)) {
-                    return;
-                }
-
-                $event->navItems[] = [
-                    'label' => Craft::t('craft-image-creator', 'Image Creator'),
-                    'url' => 'image-creator-ai',
-                    'icon' => __DIR__ . '/icon-mask.svg',
-                ];
             }
         );
     }
