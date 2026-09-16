@@ -1,38 +1,8 @@
 {% import '_includes/forms' as forms %}
 
-<div class="craft-image-creator-settings" data-image-creator-settings-tabs>
-    <nav class="craft-image-creator-settings__tabs" aria-label="{{ 'Image Creator settings'|t('craft-image-creator') }}" data-settings-tablist>
-        <a
-            class="craft-image-creator-settings__tab"
-            id="image-creator-settings-tab-general"
-            href="#image-creator-settings-panel-general"
-            data-settings-tab
-            data-has-errors="{{ (settings.getErrors('standaloneVolumeUid') or settings.getErrors('assetFieldUids') or settings.getErrors('contextFields') or settings.getErrors('defaultProvider')) ? 'true' : 'false' }}"
-        >{{ 'General'|t('craft-image-creator') }}</a>
-        <a
-            class="craft-image-creator-settings__tab"
-            id="image-creator-settings-tab-openai"
-            href="#image-creator-settings-panel-openai"
-            data-settings-tab
-            data-has-errors="{{ (settings.getErrors('openAiApiKey') or settings.getErrors('openAiModel')) ? 'true' : 'false' }}"
-        >OpenAI</a>
-        <a
-            class="craft-image-creator-settings__tab"
-            id="image-creator-settings-tab-xai"
-            href="#image-creator-settings-panel-xai"
-            data-settings-tab
-            data-has-errors="{{ (settings.getErrors('xAiApiKey') or settings.getErrors('xAiModel')) ? 'true' : 'false' }}"
-        >Grok (xAI)</a>
-        <a
-            class="craft-image-creator-settings__tab"
-            id="image-creator-settings-tab-google"
-            href="#image-creator-settings-panel-google"
-            data-settings-tab
-            data-has-errors="{{ (settings.getErrors('googleApiKey') or settings.getErrors('googleModel')) ? 'true' : 'false' }}"
-        >Google Gemini</a>
-    </nav>
+<div class="craft-image-creator-settings">
 
-    <section class="craft-image-creator-settings__panel" id="image-creator-settings-panel-general" aria-labelledby="image-creator-settings-tab-general" data-settings-panel>
+    <section id="image-creator-settings-panel-general" class="">
         <h2>{{ 'Standalone Image Creator'|t('craft-image-creator') }}</h2>
 
 {{ forms.selectField({
@@ -82,7 +52,7 @@
 
     </section>
 
-    <section class="craft-image-creator-settings__panel" id="image-creator-settings-panel-openai" aria-labelledby="image-creator-settings-tab-openai" data-settings-panel>
+    <section id="image-creator-settings-panel-openai" class="hidden">
         <h2>OpenAI</h2>
 
 {{ forms.autosuggestField({
@@ -112,7 +82,7 @@
 
     </section>
 
-    <section class="craft-image-creator-settings__panel" id="image-creator-settings-panel-xai" aria-labelledby="image-creator-settings-tab-xai" data-settings-panel>
+    <section id="image-creator-settings-panel-xai" class="hidden">
         <h2>Grok (xAI)</h2>
 
 {{ forms.autosuggestField({
@@ -142,7 +112,7 @@
 
     </section>
 
-    <section class="craft-image-creator-settings__panel" id="image-creator-settings-panel-google" aria-labelledby="image-creator-settings-tab-google" data-settings-panel>
+    <section id="image-creator-settings-panel-google" class="hidden">
         <h2>Google Gemini</h2>
 
 {{ forms.autosuggestField({

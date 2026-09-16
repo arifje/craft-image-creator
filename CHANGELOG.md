@@ -1,5 +1,10 @@
 # Release Notes
 
+## 1.0.7 - 2026-09-16
+
+- Replaces custom settings tabs with Craft’s native control-panel pane tabs and tab manager.
+- Uses Craft’s standard plugin settings form for saving all four tabs together.
+
 ## 1.0.6 - 2026-09-16
 
 - Loads image-model choices from each configured provider instead of relying only on bundled model lists.

@@ -52,7 +52,7 @@ Prompt edits apply to generation requests submitted after the prompt is saved. R
 
 ### Provider credentials
 
-Settings are organized into **General**, **OpenAI**, **Grok (xAI)**, and **Google Gemini** tabs. Switch tabs without losing edits, then save all settings together.
+Settings use Craft’s native control-panel tabs: **General**, **OpenAI**, **Grok (xAI)**, and **Google Gemini** tabs. Switch tabs without losing edits, then save all settings together.
 
 OpenAI, xAI, and Google each have an API key and model setting. API keys use Craft autosuggest fields and should normally reference environment variables. Models are selected from provider-specific dropdowns. On opening the settings page, the plugin loads image-model IDs available to each saved API key from the provider; use **Refresh models** beside a dropdown to fetch a new list immediately. Successful lists are cached for 15 minutes per provider and API key. Refreshing the list does not change the selected model or save plugin settings. Save API-key changes before refreshing models.
 

@@ -28,6 +28,7 @@ use craft\fields\Assets;
 use craft\helpers\Json;
 use craft\services\UserPermissions;
 use craft\services\Utilities;
+use craft\web\Controller;
 use craft\web\UrlManager;
 use craft\web\View;
 use yii\base\Event;
@@ -85,6 +86,20 @@ final class Plugin extends BasePlugin
     protected function createSettingsModel(): ?Model
     {
         return Craft::createObject(Settings::class);
+    }
+
+    public function getSettingsResponse(): mixed
+    {
+        $view = Craft::$app->getView();
+
+        /** @var Controller $controller */
+        $controller = Craft::$app->controller;
+
+        return $controller->renderTemplate('craft-image-creator/_settings-page.twig', [
+            'plugin' => $this,
+            'settings' => $this->getSettings(),
+            'settingsHtml' => $view->namespaceInputs(fn(): string => (string)$this->settingsHtml(), 'settings'),
+        ]);
     }
 
     protected function settingsHtml(): ?string

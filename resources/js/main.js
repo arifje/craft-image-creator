@@ -3,7 +3,6 @@ import {installFieldActions, insertGeneratedAsset} from './field-actions.js';
 import {ImageCreatorModal} from './modal.js';
 import {installStandaloneCreator} from './standalone.js';
 import {installModelSettings} from './model-settings.js';
-import {installSettingsTabs} from './settings-tabs.js';
 
 const config = window.CraftImageCreatorConfig || {
 	craftMajorVersion: 4,
@@ -29,4 +28,3 @@ function openModal(context) {
 installFieldActions(openModal);
 installStandaloneCreator(config);
 installModelSettings();
-installSettingsTabs();

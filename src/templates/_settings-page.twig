@@ -1,0 +1,22 @@
+{% extends 'settings/plugins/_settings.twig' %}
+
+{% set tabs = {} %}
+{% for key, group in {
+    general: {label: 'General'|t('craft-image-creator'), fields: ['standaloneVolumeUid', 'assetFieldUids', 'contextFields', 'defaultProvider']},
+    openai: {label: 'OpenAI', fields: ['openAiApiKey', 'openAiModel']},
+    xai: {label: 'Grok (xAI)', fields: ['xAiApiKey', 'xAiModel']},
+    google: {label: 'Google Gemini', fields: ['googleApiKey', 'googleModel']},
+} %}
+    {% set id = 'settings-image-creator-settings-panel-' ~ key %}
+    {% set hasErrors = false %}
+    {% for field in group.fields %}
+        {% if settings.getErrors(field) %}
+            {% set hasErrors = true %}
+        {% endif %}
+    {% endfor %}
+    {% set tabs = tabs|merge({(id): {
+        label: group.label,
+        url: '#' ~ id,
+        class: hasErrors ? 'error' : '',
+    }}) %}
+{% endfor %}
