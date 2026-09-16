@@ -198,13 +198,22 @@ final class Settings extends Model
         return $options;
     }
 
-    /** @return array<int, array{label: string, value: string}> */
-    public static function modelOptions(string $provider, string $currentValue = ''): array
+    /**
+     * @param string[] $availableIds
+     * @return array<int, array{label: string, value: string}>
+     */
+    public static function modelOptions(string $provider, string $currentValue = '', array $availableIds = []): array
     {
-        $models = self::MODEL_LABELS[$provider] ?? [];
+        $fallbackModels = self::MODEL_LABELS[$provider] ?? [];
+        $models = $availableIds === []
+            ? $fallbackModels
+            : array_fill_keys($availableIds, '');
         $options = [];
         foreach ($models as $value => $label) {
-            $options[] = ['label' => $label, 'value' => $value];
+            $options[] = [
+                'label' => $fallbackModels[$value] ?? ($label !== '' ? $label : $value),
+                'value' => $value,
+            ];
         }
 
         // Retain model values saved by older versions or supplied through config.

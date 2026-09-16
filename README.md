@@ -52,7 +52,9 @@ Prompt edits apply to generation requests submitted after the prompt is saved. R
 
 ### Provider credentials
 
-OpenAI, xAI, and Google each have an API key and model setting. API keys use Craft autosuggest fields and should normally reference environment variables. Models are selected from provider-specific dropdowns populated with image models supported by this plugin.
+Settings are organized into **General**, **OpenAI**, **Grok (xAI)**, and **Google Gemini** tabs. Switch tabs without losing edits, then save all settings together.
+
+OpenAI, xAI, and Google each have an API key and model setting. API keys use Craft autosuggest fields and should normally reference environment variables. Models are selected from provider-specific dropdowns. On opening the settings page, the plugin loads image-model IDs available to each saved API key from the provider; use **Refresh models** beside a dropdown to fetch a new list immediately. Successful lists are cached for 15 minutes per provider and API key. Refreshing the list does not change the selected model or save plugin settings. Save API-key changes before refreshing models.
 
 For example:
 
@@ -82,7 +84,7 @@ The current default models are:
 | Grok (xAI) | `grok-imagine-image-2.0` | [Image generation](https://docs.x.ai/developers/model-capabilities/images/generation) |
 | Google Gemini | `gemini-3.1-flash-image` | [Image generation](https://ai.google.dev/gemini-api/docs/image-generation) |
 
-The dropdowns contain models whose request formats are supported by this plugin. Existing custom or environment-based model values are retained during upgrades; advanced model overrides can also be supplied through the optional config file.
+The dropdowns include provider-discovered image models compatible with the plugin's image-generation endpoints. OpenAI and Google do not expose image-output capabilities in their model-list responses, so the plugin conservatively filters their model IDs; a listed model can still have provider-specific access or parameter restrictions. If discovery is unavailable, the dropdown keeps its bundled fallback models. Existing custom or environment-based model values remain selectable even when a provider omits them; advanced model overrides can also be supplied through the optional config file.
 
 ### Optional config file
 

@@ -1,6 +1,39 @@
 {% import '_includes/forms' as forms %}
 
-<h2>{{ 'Standalone Image Creator'|t('craft-image-creator') }}</h2>
+<div class="craft-image-creator-settings" data-image-creator-settings-tabs>
+    <nav class="craft-image-creator-settings__tabs" aria-label="{{ 'Image Creator settings'|t('craft-image-creator') }}" data-settings-tablist>
+        <a
+            class="craft-image-creator-settings__tab"
+            id="image-creator-settings-tab-general"
+            href="#image-creator-settings-panel-general"
+            data-settings-tab
+            data-has-errors="{{ (settings.getErrors('standaloneVolumeUid') or settings.getErrors('assetFieldUids') or settings.getErrors('contextFields') or settings.getErrors('defaultProvider')) ? 'true' : 'false' }}"
+        >{{ 'General'|t('craft-image-creator') }}</a>
+        <a
+            class="craft-image-creator-settings__tab"
+            id="image-creator-settings-tab-openai"
+            href="#image-creator-settings-panel-openai"
+            data-settings-tab
+            data-has-errors="{{ (settings.getErrors('openAiApiKey') or settings.getErrors('openAiModel')) ? 'true' : 'false' }}"
+        >OpenAI</a>
+        <a
+            class="craft-image-creator-settings__tab"
+            id="image-creator-settings-tab-xai"
+            href="#image-creator-settings-panel-xai"
+            data-settings-tab
+            data-has-errors="{{ (settings.getErrors('xAiApiKey') or settings.getErrors('xAiModel')) ? 'true' : 'false' }}"
+        >Grok (xAI)</a>
+        <a
+            class="craft-image-creator-settings__tab"
+            id="image-creator-settings-tab-google"
+            href="#image-creator-settings-panel-google"
+            data-settings-tab
+            data-has-errors="{{ (settings.getErrors('googleApiKey') or settings.getErrors('googleModel')) ? 'true' : 'false' }}"
+        >Google Gemini</a>
+    </nav>
+
+    <section class="craft-image-creator-settings__panel" id="image-creator-settings-panel-general" aria-labelledby="image-creator-settings-tab-general" data-settings-panel>
+        <h2>{{ 'Standalone Image Creator'|t('craft-image-creator') }}</h2>
 
 {{ forms.selectField({
     label: 'Storage location'|t('craft-image-creator'),
@@ -23,6 +56,7 @@
     options: assetFieldOptions,
     values: settings.getAssetFieldUids(),
     showAllOption: false,
+    errors: settings.getErrors('assetFieldUids'),
 }) }}
 
 {{ forms.checkboxSelectField({
@@ -33,6 +67,7 @@
     options: contextFieldOptions,
     values: settings.getContextFields(),
     showAllOption: false,
+    errors: settings.getErrors('contextFields'),
 }) }}
 
 {{ forms.selectField({
@@ -42,10 +77,13 @@
     name: 'defaultProvider',
     options: providerOptions,
     value: settings.defaultProvider,
+    errors: settings.getErrors('defaultProvider'),
 }) }}
 
-<hr>
-<h2>OpenAI</h2>
+    </section>
+
+    <section class="craft-image-creator-settings__panel" id="image-creator-settings-panel-openai" aria-labelledby="image-creator-settings-tab-openai" data-settings-panel>
+        <h2>OpenAI</h2>
 
 {{ forms.autosuggestField({
     label: 'API key'|t('craft-image-creator'),
@@ -55,19 +93,27 @@
     suggestEnvVars: true,
     suggestAliases: true,
     placeholder: '$OPENAI_API_KEY',
+    errors: settings.getErrors('openAiApiKey'),
 }) }}
 
 {{ forms.selectField({
     label: 'Image model'|t('craft-image-creator'),
-    instructions: 'Choose an image model supported by this plugin.'|t('craft-image-creator'),
+    instructions: 'Choose an image model available to your API key. Save API key changes before refreshing the list.'|t('craft-image-creator'),
     id: 'openAiModel',
     name: 'openAiModel',
     value: settings.openAiModel,
     options: modelOptions.openai,
+    errors: settings.getErrors('openAiModel'),
 }) }}
+<div class="craft-image-creator-model-refresh" data-model-provider="openai" data-model-field="openAiModel" data-api-key-field="openAiApiKey">
+    <button type="button" class="btn craft-image-creator-model-refresh__button">{{ 'Refresh models'|t('craft-image-creator') }}</button>
+    <span class="light craft-image-creator-model-refresh__status" role="status" aria-live="polite"></span>
+</div>
 
-<hr>
-<h2>Grok (xAI)</h2>
+    </section>
+
+    <section class="craft-image-creator-settings__panel" id="image-creator-settings-panel-xai" aria-labelledby="image-creator-settings-tab-xai" data-settings-panel>
+        <h2>Grok (xAI)</h2>
 
 {{ forms.autosuggestField({
     label: 'API key'|t('craft-image-creator'),
@@ -77,19 +123,27 @@
     suggestEnvVars: true,
     suggestAliases: true,
     placeholder: '$XAI_API_KEY',
+    errors: settings.getErrors('xAiApiKey'),
 }) }}
 
 {{ forms.selectField({
     label: 'Image model'|t('craft-image-creator'),
-    instructions: 'Choose an image model supported by this plugin.'|t('craft-image-creator'),
+    instructions: 'Choose an image model available to your API key. Save API key changes before refreshing the list.'|t('craft-image-creator'),
     id: 'xAiModel',
     name: 'xAiModel',
     value: settings.xAiModel,
     options: modelOptions.xai,
+    errors: settings.getErrors('xAiModel'),
 }) }}
+<div class="craft-image-creator-model-refresh" data-model-provider="xai" data-model-field="xAiModel" data-api-key-field="xAiApiKey">
+    <button type="button" class="btn craft-image-creator-model-refresh__button">{{ 'Refresh models'|t('craft-image-creator') }}</button>
+    <span class="light craft-image-creator-model-refresh__status" role="status" aria-live="polite"></span>
+</div>
 
-<hr>
-<h2>Google Gemini</h2>
+    </section>
+
+    <section class="craft-image-creator-settings__panel" id="image-creator-settings-panel-google" aria-labelledby="image-creator-settings-tab-google" data-settings-panel>
+        <h2>Google Gemini</h2>
 
 {{ forms.autosuggestField({
     label: 'API key'|t('craft-image-creator'),
@@ -99,13 +153,22 @@
     suggestEnvVars: true,
     suggestAliases: true,
     placeholder: '$GEMINI_API_KEY',
+    errors: settings.getErrors('googleApiKey'),
 }) }}
 
 {{ forms.selectField({
     label: 'Image model'|t('craft-image-creator'),
-    instructions: 'Choose an image model supported by this plugin.'|t('craft-image-creator'),
+    instructions: 'Choose an image model available to your API key. Save API key changes before refreshing the list.'|t('craft-image-creator'),
     id: 'googleModel',
     name: 'googleModel',
     value: settings.googleModel,
     options: modelOptions.google,
+    errors: settings.getErrors('googleModel'),
 }) }}
+<div class="craft-image-creator-model-refresh" data-model-provider="google" data-model-field="googleModel" data-api-key-field="googleApiKey">
+    <button type="button" class="btn craft-image-creator-model-refresh__button">{{ 'Refresh models'|t('craft-image-creator') }}</button>
+    <span class="light craft-image-creator-model-refresh__status" role="status" aria-live="polite"></span>
+</div>
+
+    </section>
+</div>

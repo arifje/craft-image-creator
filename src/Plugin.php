@@ -10,6 +10,7 @@ use arifje\craftimagecreator\services\ContextFields;
 use arifje\craftimagecreator\services\GeneratedResults;
 use arifje\craftimagecreator\services\GenerationRequests;
 use arifje\craftimagecreator\services\ImageGenerator;
+use arifje\craftimagecreator\services\ModelCatalog;
 use arifje\craftimagecreator\services\Prompts;
 use arifje\craftimagecreator\services\providers\ProviderRegistry;
 use arifje\craftimagecreator\utilities\ImagePrompt;
@@ -39,6 +40,7 @@ use yii\base\Event;
  * @property-read GenerationRequests $generationRequests
  * @property-read GeneratedResults $generatedResults
  * @property-read ImageGenerator $imageGenerator
+ * @property-read ModelCatalog $modelCatalog
  * @property-read Prompts $prompts
  * @property-read ProviderRegistry $providerRegistry
  */
@@ -60,6 +62,7 @@ final class Plugin extends BasePlugin
                 'generationRequests' => GenerationRequests::class,
                 'generatedResults' => GeneratedResults::class,
                 'imageGenerator' => ImageGenerator::class,
+                'modelCatalog' => ModelCatalog::class,
                 'prompts' => Prompts::class,
                 'providerRegistry' => ProviderRegistry::class,
             ],
@@ -87,8 +90,22 @@ final class Plugin extends BasePlugin
     protected function settingsHtml(): ?string
     {
         $settings = $this->getSettings();
+        $view = Craft::$app->getView();
+        $view->registerAssetBundle(ImageCreatorAsset::class);
+        $view->registerTranslations('craft-image-creator', [
+            'Current/custom',
+            'The provider returned no image models.',
+            'Save API key changes before refreshing models.',
+            'Save an API key before refreshing models.',
+            'Refreshing models…',
+            'Loading models…',
+            'The provider returned an invalid model list.',
+            'Models refreshed. Choose a model and save settings.',
+            'Model list loaded.',
+            'Could not load image models. Try refreshing again.',
+        ]);
 
-        return Craft::$app->getView()->renderTemplate('craft-image-creator/_settings.twig', [
+        return $view->renderTemplate('craft-image-creator/_settings.twig', [
             'plugin' => $this,
             'settings' => $settings,
             'standaloneStorageOptions' => $this->assetCreator->getStandaloneStorageOptions(
@@ -100,15 +117,18 @@ final class Plugin extends BasePlugin
             'modelOptions' => [
                 Settings::PROVIDER_OPENAI => Settings::modelOptions(
                     Settings::PROVIDER_OPENAI,
-                    $settings->openAiModel
+                    $settings->openAiModel,
+                    $this->modelCatalog->cachedModelIds(Settings::PROVIDER_OPENAI)
                 ),
                 Settings::PROVIDER_XAI => Settings::modelOptions(
                     Settings::PROVIDER_XAI,
-                    $settings->xAiModel
+                    $settings->xAiModel,
+                    $this->modelCatalog->cachedModelIds(Settings::PROVIDER_XAI)
                 ),
                 Settings::PROVIDER_GOOGLE => Settings::modelOptions(
                     Settings::PROVIDER_GOOGLE,
-                    $settings->googleModel
+                    $settings->googleModel,
+                    $this->modelCatalog->cachedModelIds(Settings::PROVIDER_GOOGLE)
                 ),
             ],
         ]);

@@ -1,5 +1,12 @@
 # Release Notes
 
+## 1.0.6 - 2026-09-16
+
+- Loads image-model choices from each configured provider instead of relying only on bundled model lists.
+- Adds per-provider **Refresh models** controls and caches successful discovery for 15 minutes per provider and API key.
+- Preserves the current model and fallback choices if a provider is unavailable, without saving settings during refresh.
+- Organizes settings into General, OpenAI, Grok, and Google Gemini tabs with keyboard navigation and automatic display of validation errors.
+
 ## 1.0.5 - 2026-09-02
 
 - Removes the standalone Image Creator item from the control-panel sidebar.

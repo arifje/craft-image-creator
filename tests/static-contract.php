@@ -30,7 +30,7 @@ $read = static function(string $path) use (&$failures): string {
 $composerJson = json_decode($read($root . '/composer.json'), true);
 $assert(is_array($composerJson), 'composer.json must contain valid JSON.');
 if (is_array($composerJson)) {
-    $assert(($composerJson['version'] ?? null) === '1.0.5', 'Composer package version must be 1.0.5.');
+    $assert(($composerJson['version'] ?? null) === '1.0.6', 'Composer package version must be 1.0.6.');
     $assert(
         ($composerJson['extra']['handle'] ?? null) === 'craft-image-creator',
         'The Craft plugin handle must remain craft-image-creator.'
@@ -44,14 +44,14 @@ if (is_array($composerJson)) {
 $packageJson = json_decode($read($root . '/package.json'), true);
 $packageLock = json_decode($read($root . '/package-lock.json'), true);
 $assert(
-    is_array($packageJson) && ($packageJson['version'] ?? null) === '1.0.5',
-    'JavaScript package version must be 1.0.5.'
+    is_array($packageJson) && ($packageJson['version'] ?? null) === '1.0.6',
+    'JavaScript package version must be 1.0.6.'
 );
 $assert(
     is_array($packageLock) &&
-    ($packageLock['version'] ?? null) === '1.0.5' &&
-    ($packageLock['packages']['']['version'] ?? null) === '1.0.5',
-    'JavaScript lockfile versions must be 1.0.5.'
+    ($packageLock['version'] ?? null) === '1.0.6' &&
+    ($packageLock['packages']['']['version'] ?? null) === '1.0.6',
+    'JavaScript lockfile versions must be 1.0.6.'
 );
 
 $generatorSource = $read($root . '/src/services/ImageGenerator.php');
@@ -110,13 +110,43 @@ $assert(
     'Existing custom or environment-based model settings must remain selectable.'
 );
 
+$modelCatalogSource = $read($root . '/src/services/ModelCatalog.php');
+$modelCatalogControllerSource = $read($root . '/src/controllers/ModelCatalogController.php');
+$modelSettingsSource = $read($root . '/resources/js/model-settings.js');
+$pluginSource = $read($root . '/src/Plugin.php');
+$assert(
+    str_contains($pluginSource, "'modelCatalog' => ModelCatalog::class") &&
+    str_contains($pluginSource, 'cachedModelIds(Settings::PROVIDER_OPENAI)') &&
+    str_contains($pluginSource, 'cachedModelIds(Settings::PROVIDER_XAI)') &&
+    str_contains($pluginSource, 'cachedModelIds(Settings::PROVIDER_GOOGLE)') &&
+    str_contains($settingsSource, 'array $availableIds = []'),
+    'Model dropdowns must use the provider-discovered cache while retaining fallback choices.'
+);
+$assert(
+    str_contains($modelCatalogSource, 'CACHE_DURATION = 900') &&
+    str_contains($modelCatalogSource, "hash('sha256', \$credential)") &&
+    str_contains($modelCatalogSource, 'bool $forceRefresh = false') &&
+    str_contains($modelCatalogSource, 'image-generation-models') &&
+    str_contains($modelCatalogSource, 'generativelanguage.googleapis.com/v1beta/models'),
+    'Model discovery must use provider APIs and a credential-scoped 15-minute cache with forced refresh.'
+);
+$assert(
+    str_contains($modelCatalogControllerSource, 'requireAdmin(false)') &&
+    str_contains($modelCatalogControllerSource, 'requirePostRequest()') &&
+    str_contains($modelCatalogControllerSource, 'requireAcceptsJson()') &&
+    str_contains($modelCatalogControllerSource, 'modelIds($provider, $force)') &&
+    substr_count($settingsTemplate, 'craft-image-creator-model-refresh__button') === 3 &&
+    str_contains($modelSettingsSource, 'loadModels(false)') &&
+    str_contains($modelSettingsSource, 'loadModels(true)'),
+    'Settings model refresh must be admin-only and offer cached loading plus explicit refresh for each provider.'
+);
+
 $controllerSource = $read($root . '/src/controllers/CreatorController.php');
 $jobSource = $read($root . '/src/jobs/GenerateImage.php');
 $requestSource = $read($root . '/src/services/GenerationRequests.php');
 $abstractProviderSource = $read($root . '/src/services/providers/AbstractProvider.php');
 $providerExceptionSource = $read($root . '/src/services/providers/ProviderException.php');
 $xAiProviderSource = $read($root . '/src/services/providers/XAiProvider.php');
-$pluginSource = $read($root . '/src/Plugin.php');
 $promptControllerSource = $read($root . '/src/controllers/PromptController.php');
 $promptsSource = $read($root . '/src/services/Prompts.php');
 $promptUtilitySource = $read($root . '/src/utilities/ImagePrompt.php');
