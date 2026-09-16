@@ -26,6 +26,7 @@ use craft\events\RegisterUrlRulesEvent;
 use craft\events\RegisterUserPermissionsEvent;
 use craft\fields\Assets;
 use craft\helpers\Json;
+use craft\helpers\UrlHelper;
 use craft\services\UserPermissions;
 use craft\services\Utilities;
 use craft\web\Controller;
@@ -199,6 +200,10 @@ final class Plugin extends BasePlugin
         ]);
 
         $config = [
+            'preferenceCookie' => 'craft_image_creator_' . substr(hash(
+                'sha256',
+                UrlHelper::cpUrl() . ':' . Craft::$app->getUser()->getId()
+            ), 0, 24),
             'craftMajorVersion' => (int)explode('.', Craft::$app->getVersion())[0],
             'csrfTokenName' => Craft::$app->getConfig()->getGeneral()->csrfTokenName,
             'defaultProvider' => $this->getSettings()->defaultProvider,

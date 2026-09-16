@@ -1,5 +1,7 @@
 # Image Creator for Craft CMS
 
+Provider and image-ratio selections are remembered for one year in a browser cookie scoped to the signed-in user and control panel. Reopening or resetting the modal restores those choices. Unavailable choices fall back to the configured defaults.
+
 Image Creator adds a **Create with AI** action to selected image-capable Assets fields in the Craft control panel. Editors can combine configured context with one-off instructions, generate an image with OpenAI, Grok (xAI), or Google Gemini, and save the result as a normal Craft Asset. A standalone creator remains available by its direct control-panel URL without adding another item to the sidebar.
 
 The plugin supports Craft CMS 4.4 and Craft CMS 5, including Assets and context fields nested in Matrix blocks.

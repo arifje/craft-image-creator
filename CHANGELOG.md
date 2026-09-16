@@ -1,5 +1,10 @@
 # Release Notes
 
+## 1.0.8 - 2026-09-16
+
+- Remembers each user’s last provider and image ratio in a browser cookie when opening or resetting the creation modal.
+- Falls back to available defaults when saved choices are no longer supported.
+
 ## 1.0.7 - 2026-09-16
 
 - Replaces custom settings tabs with Craft’s native control-panel pane tabs and tab manager.

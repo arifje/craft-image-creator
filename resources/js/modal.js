@@ -8,6 +8,8 @@ import {
 	translate,
 } from './helpers.js';
 
+import {selectionPreferences, rememberSelection} from './preferences.js';
+
 let modalCount = 0;
 
 function element(tag, options = {}, children = []) {
@@ -35,13 +37,6 @@ function actionRequest(url, data) {
 			'Content-Type': 'application/json',
 		},
 	}).then(responsePayload);
-}
-
-function configuredProvider(config) {
-	const providers = Array.isArray(config.providers) ? config.providers : [];
-	return providers.find((provider) => provider.value === config.defaultProvider)?.value
-		|| providers[0]?.value
-		|| '';
 }
 
 export class ImageCreatorModal {
@@ -164,6 +159,7 @@ export class ImageCreatorModal {
 	}
 
 	buildControls() {
+		const preferences = selectionPreferences(this.config);
 		const providers = Array.isArray(this.config.providers) ? this.config.providers : [];
 		const providerId = `${this.id}-provider`;
 		this.providerSelect = element('select', {id: providerId});
@@ -171,7 +167,10 @@ export class ImageCreatorModal {
 			const option = element('option', {value: provider.value, text: provider.label});
 			this.providerSelect.appendChild(option);
 		});
-		this.providerSelect.value = configuredProvider(this.config);
+		this.providerSelect.value = preferences.provider;
+		this.providerSelect.addEventListener('change', () => {
+			rememberSelection(this.config, this.providerSelect.value, this.selectedRatio());
+		});
 
 		const providerField = this.field(
 			translate('Provider'),
@@ -193,7 +192,12 @@ export class ImageCreatorModal {
 				name: `${this.id}-ratio`,
 				value: ratio.value,
 			});
-			input.checked = index === 0;
+			input.checked = ratio.value === preferences.ratio;
+			input.addEventListener('change', () => {
+				if (input.checked) {
+					rememberSelection(this.config, this.providerSelect.value, input.value);
+				}
+			});
 			this.ratioInputs.push(input);
 			ratioGroup.appendChild(element('label', {className: 'craft-image-creator-modal__ratio'}, [
 				input,
@@ -545,9 +549,10 @@ export class ImageCreatorModal {
 		this.extraInput.value = '';
 		this.filenameInput.value = '';
 		this.filenameField.hidden = true;
-		this.providerSelect.value = configuredProvider(this.config);
-		this.ratioInputs.forEach((input, index) => {
-			input.checked = index === 0;
+		const preferences = selectionPreferences(this.config);
+		this.providerSelect.value = preferences.provider;
+		this.ratioInputs.forEach((input) => {
+			input.checked = input.value === preferences.ratio;
 		});
 		this.setError('');
 		this.setBusy('');
