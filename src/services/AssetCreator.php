@@ -309,11 +309,6 @@ final class AssetCreator extends Component
                 }
 
                 if ($resolvedTarget->selectionCondition !== null) {
-                    if (!$resolvedTarget->selectionCondition->matchElement($asset)) {
-                        Craft::$app->getElements()->deleteElement($asset, true);
-                        throw new RuntimeException('The generated image does not meet this field’s selection rules.');
-                    }
-
                     $asset->newFilename = $targetFilename;
                     $asset->newFolderId = (int)$resolvedTarget->folder->id;
                     $asset->setScenario(Asset::SCENARIO_MOVE);
@@ -322,6 +317,12 @@ final class AssetCreator extends Component
                     // @phpstan-ignore-next-line
                     if (!$this->saveAsset($asset)) {
                         throw new RuntimeException($this->elementErrors($asset, 'The generated Asset could not be moved.'));
+                    }
+
+                    // Rules must see the final volume and conflict-resolved
+                    // filename. The catch below removes a rejected Asset.
+                    if (!$resolvedTarget->selectionCondition->matchElement($asset)) {
+                        throw new RuntimeException('The generated image does not meet this field’s selection rules.');
                     }
                 }
             } catch (Throwable $exception) {

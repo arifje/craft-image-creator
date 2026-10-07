@@ -42,7 +42,7 @@ Choose the standalone **Storage location** once in the plugin settings. The drop
 
 Fields are stored by UID so the configuration remains stable when handles change and can travel with project config. Nested fields are labelled in the settings screen. In a Matrix block, Image Creator reads context from the closest relevant block before falling back to the surrounding element form.
 
-Configured context fields are shown in the modal so an editor can review or adjust the text for that generation. Caption and Category values use compact single-line inputs; longer context remains multiline. An empty configured field is intentionally included as empty context; it does not prevent generation. Modal edits and **Extra context** are one-off prompt inputs and do not change the element's field values.
+Configured context fields are shown in the modal so an editor can review or adjust the text for that generation. Caption and Category values use compact single-line inputs; longer context remains multiline. An empty configured field is intentionally included as empty context; it does not prevent generation. HTML context is converted to text using inert template contents so embedded images and event handlers cannot run. Modal edits and **Extra context** are one-off prompt inputs and do not change the element's field values.
 
 ### Image prompt
 
@@ -122,7 +122,7 @@ Grant editors the **Image Creator -> Create images with AI** permission. For fie
 
 Users who may change the base prompt also need the **Utilities -> Image Creator Prompt** permission. This is independent from the image-creation permission; administrators implicitly have access to all utilities. The prompt-saving endpoint checks the utility authorization separately from access to the Utility page.
 
-Every request checks the plugin permission and the relevant `viewAssets:<volumeUid>` and/or `saveAssets:<volumeUid>` permissions. Field-based requests additionally check the element edit permission, selected Assets-field configuration, allowed file kinds, field selection conditions, and the field's resolved upload location. Standalone requests resolve the configured volume and its root on the server. The queue worker repeats these checks immediately before contacting a provider. A visible action is not treated as authorization.
+Every request checks the plugin permission and the relevant `viewAssets:<volumeUid>` and/or `saveAssets:<volumeUid>` permissions. Field-based requests additionally check the element edit permission, selected Assets-field configuration, allowed file kinds, field selection conditions, and the field's resolved upload location. Standalone requests resolve the configured volume and its root on the server. The queue worker repeats these checks immediately before contacting a provider. A visible action is not treated as authorization. Selection rules are evaluated after saving to the final destination, against the actual filename chosen by Craft. A rejected Asset is deleted; the generated preview remains available so the editor can adjust the filename and retry.
 
 ## Standalone workflow
 
@@ -206,11 +206,17 @@ Run the local checks before a release:
 composer --no-plugins validate --strict --no-check-version --no-check-publish
 php tests/static-contract.php
 php tests/provider-errors.php
+php tests/model-catalog.php
+php tests/asset-save.php
 vendor/bin/phpstan analyse
 vendor/bin/ecs check
 npm run check
 npm test
 ```
+
+The asset-save regression uses fake persistence to verify final-state validation, rejection cleanup, and preview retention. To additionally check native rules without writing records, run `php tests/craft-conditions.php /path/to/craft/bootstrap.php` in each Craft test environment.
+
+For the browser security regression, open `tests/browser/context.html` through a local web server (or a headless browser with local module access). The result must report `PASS`; the test exercises hostile title/textarea markup and rich-text extraction without contacting providers.
 
 The compiled control-panel assets are part of the Composer package. Run the production build and commit the generated bundle whenever its source changes.
 

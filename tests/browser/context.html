@@ -1,0 +1,26 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Context extraction regression</title>
+<pre id="result">RUNNING</pre>
+<form><input name="title"><textarea name="fields[summary]"></textarea><span id="context"></span></form>
+<script type="module">
+import {readContextFields} from '../../resources/js/helpers.js';
+const result = document.getElementById('result');
+window.contextExecuted = false;
+try {
+    const payload = '<img src="data:image/png;base64,invalid" onerror="window.contextExecuted=true">';
+    document.querySelector('input').value = 'Title ' + payload;
+    document.querySelector('textarea').value = '<p>Editorial <strong>context</strong> &amp; details</p>' + payload;
+    const fields = readContextFields(document.getElementById('context'), [
+        {key: 'title', handle: 'title', native: true},
+        {key: 'summary', handle: 'summary', native: false},
+    ]);
+    await new Promise(resolve => setTimeout(resolve, 100));
+    if (window.contextExecuted) throw new Error('Stored context executed an event handler');
+    if (fields[0].value !== 'Title') throw new Error('Unexpected title extraction');
+    if (fields[1].value !== 'Editorial context & details') throw new Error('Rich text extraction changed');
+    result.textContent = 'PASS: hostile title and textarea remain inert; rich text is preserved as text.';
+} catch (error) {
+    result.textContent = 'FAIL: ' + error.message;
+}
+</script>

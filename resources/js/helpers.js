@@ -89,9 +89,11 @@ function normalizeText(value) {
 		return text.trim();
 	}
 
-	const holder = document.createElement('div');
+	// Template contents are inert: extracting text must not load images or run
+	// event handlers from stored field values, even in a detached container.
+	const holder = document.createElement('template');
 	holder.innerHTML = text;
-	return (holder.textContent || '').trim();
+	return (holder.content.textContent || '').trim();
 }
 
 function controlValue(control) {

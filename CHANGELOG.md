@@ -1,5 +1,10 @@
 # Release Notes
 
+## 1.0.9 - 2026-10-07
+
+- Prevents stored context markup from executing browser event handlers during text extraction.
+- Checks Assets-field selection rules against the final volume and filename, including Craft filename conflict resolution. Rejected Assets are removed and the preview remains available for retry.
+
 ## 1.0.8 - 2026-09-16
 
 - Remembers each user’s last provider and image ratio in a browser cookie when opening or resetting the creation modal.
