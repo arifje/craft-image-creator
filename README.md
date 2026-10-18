@@ -40,7 +40,7 @@ Choose the standalone **Storage location** once in the plugin settings. The drop
 - **Context fields** controls which element values are shown in the modal and appended to the provider prompt. Title, slug, global custom fields, and nested Matrix custom fields can be selected.
 - **Default provider** is selected when the modal opens, when that provider is configured.
 
-Fields are stored by UID so the configuration remains stable when handles change and can travel with project config. Nested fields are labelled in the settings screen. In a Matrix block, Image Creator reads context from the closest relevant block before falling back to the surrounding element form.
+Fields are stored by UID so the configuration remains stable when handles change and can travel with project config. Context extraction uses each rendered field’s effective handle, including Craft 5 field layout overrides. Nested fields are labelled in the settings screen. In a Matrix block, Image Creator reads context from the closest relevant block before falling back to the surrounding element form.
 
 Configured context fields are shown in the modal so an editor can review or adjust the text for that generation. Caption and Category values use compact single-line inputs; longer context remains multiline. An empty configured field is intentionally included as empty context; it does not prevent generation. HTML context is converted to text using inert template contents so embedded images and event handlers cannot run. Modal edits and **Extra context** are one-off prompt inputs and do not change the element's field values.
 
@@ -220,7 +220,9 @@ The asset-save regression uses fake persistence to verify final-state validation
 
 Run `php tests/preview-request.php /path/to/craft/bootstrap.php` to verify preview URLs with Craft’s request parser and controller actions. This uses an in-memory cache and a temporary image, without contacting providers or writing database records.
 
-For the browser security regression, open `tests/browser/context.html` through a local web server (or a headless browser with local module access). The result must report `PASS`; the test exercises hostile title/textarea markup and rich-text extraction without contacting providers.
+Run `php tests/context-fields.php /path/to/craft/bootstrap.php` in the Craft 5 test environment to verify that input events emit the effective layout handle with the stable field UID. The fixture is in memory and does not write database records.
+
+For the browser context regression, open `tests/browser/context.html` through a local web server (or a headless browser with local module access). The result must report `PASS`; the test exercises overridden handles, Matrix scope and parent fallback, empty and missing fields, hostile title/textarea markup, and rich-text extraction without contacting providers.
 
 The compiled control-panel assets are part of the Composer package. Run the production build and commit the generated bundle whenever its source changes.
 

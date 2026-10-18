@@ -1,5 +1,10 @@
 # Release Notes
 
+## 1.0.11 - 2026-10-18
+
+- Fixes AI context extraction for Craft 5 field layout handle overrides by matching rendered fields by UID and their effective handles. Matrix context remains scoped to the nearest block, with parent fallback.
+- Adds native Craft input-event and browser regressions for overridden handles, unrelated fields, empty values, and nested context.
+
 ## 1.0.10 - 2026-10-18
 
 - Fixes generated image previews being rejected by Craft before reaching the plugin by replacing the reserved `token` query parameter with `imageCreatorToken`. Existing authentication, permissions, expiry, and result ownership checks remain enforced.

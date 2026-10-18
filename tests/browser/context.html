@@ -3,6 +3,22 @@
 <title>Context extraction regression</title>
 <pre id="result">RUNNING</pre>
 <form><input name="title"><textarea name="fields[summary]"></textarea><span id="context"></span></form>
+<form id="overrides">
+    <div class="field"><input name="fields[summary]" value="Wrong field"></div>
+    <div class="field">
+        <textarea name="fields[imageCaption]">Parent context</textarea>
+        <span hidden data-image-creator-context-key="field:summary-uid" data-image-creator-context-handle="imageCaption"></span>
+    </div>
+    <span id="parent-context"></span>
+    <div class="matrixblock">
+        <div class="field">
+            <textarea name="fields[content][entries][1][fields][caption]">Nested context</textarea>
+            <span hidden data-image-creator-context-key="field:summary-uid" data-image-creator-context-handle="caption"></span>
+        </div>
+        <span id="nested-context"></span>
+    </div>
+    <div class="matrixblock"><span id="fallback-context"></span></div>
+</form>
 <script type="module">
 import {readContextFields} from '../../resources/js/helpers.js';
 const result = document.getElementById('result');
@@ -19,7 +35,21 @@ try {
     if (window.contextExecuted) throw new Error('Stored context executed an event handler');
     if (fields[0].value !== 'Title') throw new Error('Unexpected title extraction');
     if (fields[1].value !== 'Editorial context & details') throw new Error('Rich text extraction changed');
-    result.textContent = 'PASS: hostile title and textarea remain inert; rich text is preserved as text.';
+    const definitions = [{key: 'field:summary-uid', handle: 'summary', native: false}];
+    const check = (id, expected) => {
+        const actual = readContextFields(document.getElementById(id), definitions)[0].value;
+        if (actual !== expected) throw new Error(`${id}: expected ${expected}, got ${actual}`);
+    };
+    check('parent-context', 'Parent context');
+    check('nested-context', 'Nested context');
+    check('fallback-context', 'Parent context');
+    document.querySelector('#overrides textarea').value = '';
+    check('parent-context', '');
+    document.querySelector('#overrides .matrixblock textarea').value = '';
+    check('nested-context', '');
+    document.querySelector('#overrides [data-image-creator-context-key]').remove();
+    check('parent-context', '');
+    result.textContent = 'PASS: layout handle overrides, Matrix scope, parent fallback, empty and missing fields; hostile title and textarea remain inert; rich text is preserved as text.';
 } catch (error) {
     result.textContent = 'FAIL: ' + error.message;
 }

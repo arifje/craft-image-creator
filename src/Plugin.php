@@ -25,6 +25,7 @@ use craft\events\RegisterComponentTypesEvent;
 use craft\events\RegisterUrlRulesEvent;
 use craft\events\RegisterUserPermissionsEvent;
 use craft\fields\Assets;
+use craft\helpers\Html;
 use craft\helpers\Json;
 use craft\helpers\UrlHelper;
 use craft\services\UserPermissions;
@@ -285,7 +286,7 @@ final class Plugin extends BasePlugin
     private function registerFieldActions(): void
     {
         Event::on(
-            Assets::class,
+            Field::class,
             Field::EVENT_DEFINE_INPUT_HTML,
             function(DefineFieldHtmlEvent $event): void {
                 $request = Craft::$app->getRequest();
@@ -295,14 +296,30 @@ final class Plugin extends BasePlugin
 
                 if (
                     !$request->getIsCpRequest() ||
-                    !$field instanceof Assets ||
+                    !$field instanceof Field ||
                     !$element instanceof ElementInterface ||
                     $event->static ||
                     (property_exists($event, 'inline') && $event->inline) ||
-                    !$this->getSettings()->isAssetFieldEnabled($fieldUid) ||
-                    !$this->fieldAllowsImages($field) ||
                     !Craft::$app->getUser()->checkPermission('accessCp') ||
                     !Craft::$app->getUser()->checkPermission(self::PERMISSION_USE)
+                ) {
+                    return;
+                }
+
+                // The rendered field carries Craft 5's layout-specific handle.
+                $contextKey = 'field:' . $fieldUid;
+                if (in_array($contextKey, $this->getSettings()->getContextFields(), true)) {
+                    $event->html .= Html::tag('span', '', [
+                        'hidden' => true,
+                        'data-image-creator-context-key' => $contextKey,
+                        'data-image-creator-context-handle' => $field->handle,
+                    ]);
+                }
+
+                if (
+                    !$field instanceof Assets ||
+                    !$this->getSettings()->isAssetFieldEnabled($fieldUid) ||
+                    !$this->fieldAllowsImages($field)
                 ) {
                     return;
                 }

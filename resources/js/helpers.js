@@ -156,6 +156,13 @@ function belongsToScope(control, scope) {
 }
 
 function contextControls(scope, definition) {
+	const customField = !definition.native && definition.key?.startsWith('field:');
+	const sources = customField
+		? [...scope.querySelectorAll('[data-image-creator-context-key]')]
+			.filter((source) => belongsToScope(source, scope)
+				&& source.dataset.imageCreatorContextKey === definition.key)
+		: [];
+
 	return [...scope.querySelectorAll(
 		'input[name], textarea[name], select[name], [contenteditable="true"]'
 	)].filter((control) => {
@@ -164,6 +171,11 @@ function contextControls(scope, definition) {
 		}
 
 		const name = control.getAttribute('name') || '';
+		if (customField) {
+			return sources.some((source) => source.closest('.field') === control.closest('.field')
+				&& matchesFieldName(name, source.dataset.imageCreatorContextHandle));
+		}
+
 		return definition.native
 			? matchesNativeFieldName(name, definition.handle)
 			: matchesFieldName(name, definition.handle);
