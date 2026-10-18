@@ -162,7 +162,7 @@ final class CreatorController extends Controller
                     'width' => $result['width'],
                     'height' => $result['height'],
                     'previewUrl' => UrlHelper::cpUrl('image-creator-ai/api/preview', [
-                        'token' => $token,
+                        'imageCreatorToken' => $token,
                     ]),
                 ];
             } catch (RuntimeException) {
@@ -231,11 +231,18 @@ final class CreatorController extends Controller
         return $this->asJson(['success' => true]);
     }
 
-    public function actionPreview(string $token): Response
+    /**
+     * Returns the current user's generated image using a plugin-specific query parameter.
+     *
+     * Craft reserves `token` and validates it before controller actions run.
+     *
+     * @throws BadRequestHttpException if the image token is invalid, expired, or belongs to another user
+     */
+    public function actionPreview(string $imageCreatorToken): Response
     {
         try {
             $result = Plugin::getInstance()->generatedResults->get(
-                trim($token),
+                trim($imageCreatorToken),
                 (int)Craft::$app->getUser()->getId()
             );
             $contents = file_get_contents($result['path']);

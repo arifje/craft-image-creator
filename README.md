@@ -173,6 +173,8 @@ The modal offers these output ratios:
 
 Image Creator requests the closest supported provider output and validates the resulting image server-side. Grok currently uses `3:4` as its nearest native request for `4:5`; the result is center-cropped to the exact selected ratio before it is saved.
 
+Generated preview URLs use the plugin-specific `imageCreatorToken` query parameter. Craft reserves `token` for its own routing tokens; older plugin versions could therefore show a broken preview even after generation succeeded. After upgrading from 1.0.9 or earlier, reload the control panel before opening the creator again.
+
 ## Security and temporary files
 
 - Provider credentials stay on the server and are never included in the browser configuration.
@@ -215,6 +217,8 @@ npm test
 ```
 
 The asset-save regression uses fake persistence to verify final-state validation, rejection cleanup, and preview retention. To additionally check native rules without writing records, run `php tests/craft-conditions.php /path/to/craft/bootstrap.php` in each Craft test environment.
+
+Run `php tests/preview-request.php /path/to/craft/bootstrap.php` to verify preview URLs with Craft’s request parser and controller actions. This uses an in-memory cache and a temporary image, without contacting providers or writing database records.
 
 For the browser security regression, open `tests/browser/context.html` through a local web server (or a headless browser with local module access). The result must report `PASS`; the test exercises hostile title/textarea markup and rich-text extraction without contacting providers.
 

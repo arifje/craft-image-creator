@@ -1,5 +1,10 @@
 # Release Notes
 
+## 1.0.10 - 2026-10-18
+
+- Fixes generated image previews being rejected by Craft before reaching the plugin by replacing the reserved `token` query parameter with `imageCreatorToken`. Existing authentication, permissions, expiry, and result ownership checks remain enforced.
+- Adds a regression check covering Craft request-token validation, preview URL generation, action parameter binding, image responses, and cross-user access rejection.
+
 ## 1.0.9 - 2026-10-07
 
 - Prevents stored context markup from executing browser event handlers during text extraction.
