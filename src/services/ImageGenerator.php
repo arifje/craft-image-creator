@@ -69,7 +69,7 @@ final class ImageGenerator extends Component
         $definitions = Plugin::getInstance()->contextFields->getConfiguredDefinitions();
         $allowedKeys = array_fill_keys(array_column($definitions, 'key'), true);
         foreach ($contextValues as $key => $value) {
-            if (!is_string($key) || !isset($allowedKeys[$key]) || !is_scalar($value)) {
+            if (!isset($allowedKeys[$key]) || !is_scalar($value)) {
                 throw new RuntimeException('The supplied context fields are invalid.');
             }
         }

@@ -91,6 +91,27 @@ const equal = (actual, expected, message) => { assert.equal(actual, expected, me
     await writer.locator('.craft-image-creator-standalone__saved:not([hidden])').waitFor();await writer.waitForFunction(()=>!document.querySelector('.craft-image-creator-modal'));equal(await writer.locator('.craft-image-creator-modal').count(),0,'native modal saves and closes');
     // Field creation uses the real Craft relation input and native element save.
     const entryPath=new URL(fixture.entryUrl).pathname;await writer.goto(base+entryPath);await writer.locator('.craft-image-creator-field-button').waitFor();
+    // Exercise the migrated render endpoint independently of replacement.
+    await writer.evaluate(()=>{
+      const marker=document.querySelector('.craft-image-creator-context');
+      const container=marker.closest('.field').querySelector('.elementselect');
+      const input=window.jQuery(container).data('elementSelect');
+      if(typeof input?.removeElement!=='function')throw new Error('Native relation removal is unavailable');
+      if(input.$elements.length)input.removeElement(input.$elements);
+    });
+    await writer.waitForFunction(()=>document.querySelectorAll('.elementselect .element[data-kind="image"]').length===0);
+    equal(await writer.locator('.elementselect .element[data-kind="image"]').count(),0,'native relation removal prepares an empty Assets field');
+    await writer.locator('.craft-image-creator-field-button').click();
+    const emptyGeneration=writer.waitForResponse(r=>decodeURIComponent(r.url()).includes('creator/generate')&&r.request().method()==='POST');
+    await writer.locator('.craft-image-creator-modal').getByRole('button',{name:'Generate image',exact:true}).click();run((await(await emptyGeneration).json()).generation.token);
+    await writer.waitForFunction(()=>!document.querySelector('.craft-image-creator-modal__actions button:nth-child(2)').disabled);
+    const emptyRender=writer.waitForResponse(r=>decodeURIComponent(r.url()).includes('app/render-elements')&&r.request().method()==='POST');
+    await writer.locator('.craft-image-creator-modal').getByRole('button',{name:'Add to field',exact:true}).click();
+    equal((await emptyRender).status(),200,'empty Assets field uses the real Craft 5 render-elements endpoint');
+    await writer.waitForFunction(()=>!document.querySelector('.craft-image-creator-modal'));
+    equal(await writer.locator('.elementselect .element[data-kind="image"]').count(),1,'Craft 5 rendering inserts the generated relation into an empty field');
+    await writer.getByRole('button',{name:'Save',exact:true}).click();await writer.waitForTimeout(1000);await writer.goto(base+entryPath);await writer.locator('.craft-image-creator-field-button').waitFor();
+    equal(await writer.locator('.elementselect .element[data-kind="image"]').count(),1,'empty-field creation survives native Save and reload');
     const originalAsset=await writer.locator('.elementselect .element[data-kind="image"]').first().getAttribute('data-id');
     equal(await writer.locator('.craft-image-creator-field-actions button').isVisible(),true,'AI replacement action stays visible when native field controls are hidden');
     await writer.locator('.craft-image-creator-field-button').click();equal(await writer.locator('.craft-image-creator-modal input[id$="context-1"]').inputValue(),'Audit caption before generation','native layout override reads context');

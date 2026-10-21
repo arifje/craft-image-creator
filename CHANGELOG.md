@@ -1,5 +1,11 @@
 # Release Notes
 
+## 2.0.0 - 2026-10-21
+
+- **Breaking:** requires Craft CMS 5.11.0 or later within Craft 5 and PHP 8.2 or later within PHP 8. Craft 4 projects must stay on 1.x until the application is upgraded.
+- Uses native Craft 5 utility, field, MIME, and element-rendering APIs; removes obsolete Craft 4 compatibility paths.
+- Retains the existing database schema, settings, stored prompts, Assets, and field relations.
+
 ## 1.0.12 - 2026-10-21
 
 - Keeps Create with AI available when a single-relation Assets field is full, so editors can replace its selected image.

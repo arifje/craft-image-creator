@@ -635,8 +635,7 @@ export class ImageCreatorModal {
 		if (this.busy === 'saving' && !assetAdded) {
 			return;
 		}
-		// Garnish restores focus synchronously during hide() in Craft 4, so the
-		// trigger must be enabled before the modal starts closing.
+		// Enable the trigger before Garnish restores focus as the modal closes.
 		this.context.button.disabled = false;
 
 		if (this.garnishModal) {

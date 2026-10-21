@@ -173,7 +173,7 @@ function bustRenderedThumbnail(input, asset) {
 	});
 }
 
-export async function insertGeneratedAsset(modalContext, asset, config) {
+export async function insertGeneratedAsset(modalContext, asset) {
 	const input = modalContext.input;
 	const capacity = fieldCapacity(input);
 
@@ -191,7 +191,6 @@ export async function insertGeneratedAsset(modalContext, asset, config) {
 		}
 
 		const request = renderElementRequest(
-			config.craftMajorVersion,
 			input,
 			asset.id,
 			input?.settings?.criteria?.siteId || modalContext.target.siteId
@@ -203,7 +202,6 @@ export async function insertGeneratedAsset(modalContext, asset, config) {
 				headers: {Accept: 'application/json'},
 			});
 			const html = extractRenderedElement(
-				config.craftMajorVersion,
 				response.data,
 				asset.id
 			);
@@ -212,19 +210,9 @@ export async function insertGeneratedAsset(modalContext, asset, config) {
 			}
 
 			const info = Craft.getElementInfo(html);
-			if (Number(config.craftMajorVersion) >= 5) {
-				// Craft 5's own AssetSelectInput inserts the element before it
-				// evaluates the response's registered head/body HTML.
-				await Promise.resolve(input.selectElements([info]));
-				await Craft.appendHeadHtml(response.data.headHtml || '');
-				await Craft.appendBodyHtml(response.data.bodyHtml || '');
-			} else {
-				// Craft 4's upload flow registers head HTML first.
-				if (response.data.headHtml) {
-					await Promise.resolve(Craft.appendHeadHtml(response.data.headHtml));
-				}
-				await Promise.resolve(input.selectElements([info]));
-			}
+			await Promise.resolve(input.selectElements([info]));
+			await Craft.appendHeadHtml(response.data.headHtml || '');
+			await Craft.appendBodyHtml(response.data.bodyHtml || '');
 		} finally {
 			input.hideSpinner?.();
 		}
@@ -232,7 +220,7 @@ export async function insertGeneratedAsset(modalContext, asset, config) {
 
 	bustRenderedThumbnail(input, asset);
 	// selectElements()/replaceElement() both emit the Assets input's bubbling
-	// change event in Craft 4 and 5. Avoid emitting a duplicate event here,
+	// change event. Avoid emitting a duplicate event here,
 	// which can result in redundant draft saves.
 }
 

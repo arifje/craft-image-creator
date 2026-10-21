@@ -14,46 +14,31 @@ export function cacheBustUrl(url, timestamp = Date.now()) {
 	return `${url}${url.includes('?') ? '&' : '?'}imageCreator=${timestamp}`;
 }
 
-export function renderElementRequest(craftMajorVersion, input, assetId, siteId) {
-	if (Number(craftMajorVersion) >= 5) {
-		const viewMode = input?.settings?.viewMode || 'list';
-
-		return {
-			action: 'app/render-elements',
-			data: {
-				elements: [{
-					type: input?.settings?.elementType || 'craft\\elements\\Asset',
-					id: Number(assetId),
-					siteId: Number(siteId),
-					instances: [{
-						context: 'field',
-						ui: ['list', 'list-inline', 'thumbs', 'large'].includes(viewMode)
-							? 'chip'
-							: 'card',
-						size: ['thumbs', 'large'].includes(viewMode) ? 'large' : 'small',
-						showActionMenu: input?.settings?.showActionMenu !== false,
-					}],
-				}],
-			},
-		};
-	}
+export function renderElementRequest(input, assetId, siteId) {
+	const viewMode = input?.settings?.viewMode || 'list';
 
 	return {
-		action: 'elements/get-element-html',
+		action: 'app/render-elements',
 		data: {
-			elementId: Number(assetId),
-			siteId: Number(siteId),
-			thumbSize: input?.settings?.viewMode || 'list',
+			elements: [{
+				type: input?.settings?.elementType || 'craft\\elements\\Asset',
+				id: Number(assetId),
+				siteId: Number(siteId),
+				instances: [{
+					context: 'field',
+					ui: ['list', 'list-inline', 'thumbs', 'large'].includes(viewMode)
+						? 'chip'
+						: 'card',
+					size: ['thumbs', 'large'].includes(viewMode) ? 'large' : 'small',
+					showActionMenu: input?.settings?.showActionMenu !== false,
+				}],
+			}],
 		},
 	};
 }
 
-export function extractRenderedElement(craftMajorVersion, responseData, assetId) {
-	if (Number(craftMajorVersion) >= 5) {
-		return responseData?.elements?.[assetId]?.[0] || '';
-	}
-
-	return responseData?.html || '';
+export function extractRenderedElement(responseData, assetId) {
+	return responseData?.elements?.[assetId]?.[0] || '';
 }
 
 export function matchesFieldName(name, handle) {

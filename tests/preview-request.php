@@ -10,9 +10,9 @@ use arifje\craftimagecreator\services\GenerationRequests;
 use craft\elements\User;
 use craft\services\Tokens;
 use craft\web\Request;
+use craft\web\Response;
 use yii\caching\ArrayCache;
 use yii\web\BadRequestHttpException;
-use yii\web\Response;
 
 require $argv[1];
 require CRAFT_VENDOR_PATH . '/craftcms/cms/bootstrap/console.php';
@@ -21,6 +21,7 @@ $loader->addPsr4('arifje\\craftimagecreator\\', dirname(__DIR__) . '/src');
 
 Craft::$app->set('cache', new ArrayCache());
 Craft::$app->set('tokens', new class() extends Tokens {
+    /** @return array<string, mixed>|false */
     public function getTokenRoute(string $token): array|false
     {
         return false;
@@ -30,6 +31,9 @@ Craft::$app->getUser()->setIdentity(new User(['id' => 123]));
 $plugin = new Plugin('craft-image-creator', Craft::$app, Plugin::config());
 $token = str_repeat('a', 64);
 $cache = Craft::$app->getCache();
+if ($cache === null) {
+    throw new RuntimeException('The preview test requires cache storage.');
+}
 $path = tempnam(sys_get_temp_dir(), 'image-creator-preview-');
 $bytes = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aD1sAAAAASUVORK5CYII=');
 file_put_contents($path, $bytes);
@@ -88,6 +92,9 @@ try {
     $controller->response = new Response();
     // Yii parameter binding must pass the URL value into the real action.
     $action = $controller->createAction('preview');
+    if ($action === null) {
+        throw new RuntimeException('The preview action is missing.');
+    }
     $response = $action->runWithParams($query);
     $assert($response->format === Response::FORMAT_RAW, 'Preview must be a raw image response.');
     $assert($response->content === $bytes, 'Preview response differs from the stored image.');
@@ -96,7 +103,7 @@ try {
 
     Craft::$app->getUser()->setIdentity(new User(['id' => 456]));
     try {
-        $action->runWithParams($query);
+        $controller->actionPreview($token);
         throw new RuntimeException('Another user could read the generated preview.');
     } catch (BadRequestHttpException) {
         // The existing result ownership check must still reject another user.

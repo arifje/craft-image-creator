@@ -89,7 +89,7 @@ $assert(
     is_string($first) && $first !== $second && $first !== $otherProvider && !str_contains($first, 'secret-one'),
     'Catalog cache keys must be isolated by provider and credential without exposing the credential.'
 );
-$assert(ModelCatalog::CACHE_DURATION === 900, 'Model listings must be cached for 15 minutes.');
+$assert((new ReflectionClass(ModelCatalog::class))->getConstant('CACHE_DURATION') === 900, 'Model listings must be cached for 15 minutes.');
 
 $source = file_get_contents(dirname(__DIR__) . '/src/services/ModelCatalog.php');
 $assert(

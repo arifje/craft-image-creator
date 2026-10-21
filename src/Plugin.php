@@ -85,7 +85,7 @@ final class Plugin extends BasePlugin
         });
     }
 
-    protected function createSettingsModel(): ?Model
+    protected function createSettingsModel(): Model
     {
         return Craft::createObject(Settings::class);
     }
@@ -104,7 +104,7 @@ final class Plugin extends BasePlugin
         ]);
     }
 
-    protected function settingsHtml(): ?string
+    protected function settingsHtml(): string
     {
         $settings = $this->getSettings();
         $view = Craft::$app->getView();
@@ -205,7 +205,6 @@ final class Plugin extends BasePlugin
                 'sha256',
                 UrlHelper::cpUrl() . ':' . Craft::$app->getUser()->getId()
             ), 0, 24),
-            'craftMajorVersion' => (int)explode('.', Craft::$app->getVersion())[0],
             'csrfTokenName' => Craft::$app->getConfig()->getGeneral()->csrfTokenName,
             'defaultProvider' => $this->getSettings()->defaultProvider,
             'providers' => $this->getSettings()->getConfiguredProviderOptions(),
@@ -269,14 +268,9 @@ final class Plugin extends BasePlugin
 
     private function registerUtilities(): void
     {
-        $craft5Event = Utilities::class . '::EVENT_REGISTER_UTILITIES';
-        $eventName = defined($craft5Event)
-            ? (string)constant($craft5Event)
-            : (string)constant(Utilities::class . '::EVENT_REGISTER_UTILITY_TYPES');
-
         Event::on(
             Utilities::class,
-            $eventName,
+            Utilities::EVENT_REGISTER_UTILITIES,
             static function(RegisterComponentTypesEvent $event): void {
                 $event->types[] = ImagePrompt::class;
             }
@@ -299,7 +293,7 @@ final class Plugin extends BasePlugin
                     !$field instanceof Field ||
                     !$element instanceof ElementInterface ||
                     $event->static ||
-                    (property_exists($event, 'inline') && $event->inline) ||
+                    $event->inline ||
                     !Craft::$app->getUser()->checkPermission('accessCp') ||
                     !Craft::$app->getUser()->checkPermission(self::PERMISSION_USE)
                 ) {

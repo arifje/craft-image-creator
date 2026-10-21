@@ -4,12 +4,12 @@ Provider and image-ratio selections are remembered for one year in a browser coo
 
 Image Creator adds a **Create with AI** action to selected image-capable Assets fields in the Craft control panel. Editors can combine configured context with one-off instructions, generate an image with OpenAI, Grok (xAI), or Google Gemini, and save the result as a normal Craft Asset. A standalone creator remains available by its direct control-panel URL without adding another item to the sidebar.
 
-The plugin supports Craft CMS 4.4 and Craft CMS 5, including Assets and context fields nested in Matrix blocks.
+Image Creator 2 supports Craft CMS 5.11 or later, including Assets and context fields nested in Matrix entries.
 
 ## Requirements
 
-- Craft CMS 4.4 or later, or Craft CMS 5
-- PHP 8.0.2 or later
+- Craft CMS 5.11.0 or later (within Craft 5)
+- PHP 8.2 or later (within PHP 8)
 - A writable Craft volume for each enabled Assets field and for the configured standalone storage location
 - Outbound HTTPS access to at least one configured image provider
 - An API key with image-generation access for the selected provider
@@ -20,11 +20,17 @@ The plugin supports Craft CMS 4.4 and Craft CMS 5, including Assets and context 
 Install the package and then install the Craft plugin:
 
 ```bash
-composer require arifje/craft-image-creator:^1.0
+composer require arifje/craft-image-creator:^2.0
 php craft plugin/install craft-image-creator
 ```
 
 After updating an existing installation, run `php craft up` so Craft can apply the plugin's database migrations.
+
+## Upgrading from 1.x
+
+Version 2.0 is a breaking compatibility release: Craft 4 is no longer supported. Keep Craft 4 projects on Image Creator 1.x while upgrading the application. Upgrade Craft to 5.11.0 or later and PHP to 8.2 or later before requiring Image Creator `^2.0`, then run `php craft up`. Existing plugin settings, stored prompts, generated Assets, and field relations are retained; the plugin schema remains 1.0.1.
+
+The Craft minimum also avoids the affected SVG Sanitizer dependency pinned by older Craft 5 releases. See the [migration verification](docs/craft5-only-2026-10-21.md) for the dependency evidence and test scope.
 
 ## Configuration
 

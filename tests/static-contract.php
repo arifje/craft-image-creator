@@ -30,28 +30,28 @@ $read = static function(string $path) use (&$failures): string {
 $composerJson = json_decode($read($root . '/composer.json'), true);
 $assert(is_array($composerJson), 'composer.json must contain valid JSON.');
 if (is_array($composerJson)) {
-    $assert(($composerJson['version'] ?? null) === '1.0.12', 'Composer package version must be 1.0.12.');
+    $assert(($composerJson['version'] ?? null) === '2.0.0', 'Composer package version must be 2.0.0.');
     $assert(
         ($composerJson['extra']['handle'] ?? null) === 'craft-image-creator',
         'The Craft plugin handle must remain craft-image-creator.'
     );
 
     $craftConstraint = (string)($composerJson['require']['craftcms/cms'] ?? '');
-    $assert(str_contains($craftConstraint, '^4.4.0'), 'Craft 4.4 must remain supported.');
-    $assert(str_contains($craftConstraint, '^5.0.0'), 'Craft 5 must remain supported.');
+    $assert($craftConstraint === '^5.11.0', 'Only the supported Craft 5 line must be allowed.');
+    $assert(($composerJson['require']['php'] ?? null) === '^8.2', 'PHP must match the Craft 5 requirement.');
 }
 
 $packageJson = json_decode($read($root . '/package.json'), true);
 $packageLock = json_decode($read($root . '/package-lock.json'), true);
 $assert(
-    is_array($packageJson) && ($packageJson['version'] ?? null) === '1.0.12',
-    'JavaScript package version must be 1.0.12.'
+    is_array($packageJson) && ($packageJson['version'] ?? null) === '2.0.0',
+    'JavaScript package version must be 2.0.0.'
 );
 $assert(
     is_array($packageLock) &&
-    ($packageLock['version'] ?? null) === '1.0.12' &&
-    ($packageLock['packages']['']['version'] ?? null) === '1.0.12',
-    'JavaScript lockfile versions must be 1.0.12.'
+    ($packageLock['version'] ?? null) === '2.0.0' &&
+    ($packageLock['packages']['']['version'] ?? null) === '2.0.0',
+    'JavaScript lockfile versions must be 2.0.0.'
 );
 
 $generatorSource = $read($root . '/src/services/ImageGenerator.php');
@@ -65,7 +65,7 @@ preg_match_all(
     $settingsTemplate,
     $autosuggestMatches
 );
-$autosuggestFields = $autosuggestMatches[1] ?? [];
+$autosuggestFields = $autosuggestMatches[1];
 foreach (
     [
         'openAiApiKey',
@@ -174,9 +174,8 @@ $assert(
 );
 $assert(
     str_contains($pluginSource, 'EVENT_REGISTER_UTILITIES') &&
-    str_contains($pluginSource, 'EVENT_REGISTER_UTILITY_TYPES') &&
     str_contains($pluginSource, 'ImagePrompt::class'),
-    'The prompt utility must be registered with compatible Craft 4 and Craft 5 utility events.'
+    'The prompt utility must use the native Craft 5 utility event.'
 );
 $assert(
     str_contains($promptUtilitySource, "return 'image-creator-prompt'") &&

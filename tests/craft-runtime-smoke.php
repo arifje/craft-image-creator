@@ -21,7 +21,22 @@ $app = require CRAFT_VENDOR_PATH . '/craftcms/cms/bootstrap/console.php';
 if ($app->getDb()->createCommand('SELECT DATABASE()')->queryScalar() !== 'image_creator_audit_20261020') {
     throw new RuntimeException('Wrong audit database.');
 }
-$fixture = json_decode(file_get_contents($root . '/fixture.json'), true, 512, JSON_THROW_ON_ERROR);
+$read = static function(string $path): string {
+    $contents = file_get_contents($path);
+    if ($contents === false) {
+        throw new RuntimeException("Cannot read audit fixture: {$path}");
+    }
+    return $contents;
+};
+/** @return list<string> */
+$readRequests = static function() use ($root): array {
+    $lines = file($root . '/provider-requests.jsonl', FILE_IGNORE_NEW_LINES);
+    if ($lines === false) {
+        throw new RuntimeException('Cannot read the audit provider request log.');
+    }
+    return $lines;
+};
+$fixture = json_decode($read($root . '/fixture.json'), true, 512, JSON_THROW_ON_ERROR);
 $plugin = Plugin::getInstance();
 $checks = 0;
 $assert = static function(bool $ok, string $message) use (&$checks): void {
@@ -51,7 +66,7 @@ foreach (['reader', 'novolume'] as $role) {
     $user = $app->getUsers()->getUserById($fixture['users'][$role]);
     $reject(fn() => $plugin->assetCreator->resolveTarget($target, $user), "{$role} cannot resolve writable standalone storage", ForbiddenHttpException::class);
 }
-$bytes = file_get_contents($root . '/image.jpg');
+$bytes = $read($root . '/image.jpg');
 foreach (['openai', 'xai', 'google'] as $provider) {
     $GLOBALS['icAuditMode'] = 'success';
     $image = $plugin->imageGenerator->generateFromPrompt($provider, '4:5', 'Audit provider request');
@@ -128,29 +143,33 @@ $originalPrompt = $plugin->prompts->getPrompt();
 try {
     $plugin->prompts->save(new Prompt(['prompt' => 'Changed after queue submission']));
     [$token, $state] = $run('success');
-    $requests = file($root . '/provider-requests.jsonl', FILE_IGNORE_NEW_LINES);
-    $lastRequest = json_decode(end($requests), true, 512, JSON_THROW_ON_ERROR);
+    $requests = $readRequests();
+    $lastLine = end($requests);
+    if ($lastLine === false) {
+        throw new RuntimeException('No audit provider request was recorded.');
+    }
+    $lastRequest = json_decode($lastLine, true, 512, JSON_THROW_ON_ERROR);
     $assert($lastRequest['payload']['prompt'] === 'Captured prompt snapshot', 'Queued prompt snapshot survives later Utility changes');
     $plugin->generatedResults->discardIfExists($token, $writer->id);
 } finally {
     $plugin->prompts->save(new Prompt(['prompt' => $originalPrompt]));
 }
-$calls = count(file($root . '/provider-requests.jsonl'));
+$calls = count($readRequests());
 [$token, $state] = $run('success', true);
 $assert($state['status'] === GenerationRequests::STATUS_CANCELLED, 'Cancelled queued job remains cancelled');
-$assert(count(file($root . '/provider-requests.jsonl')) === $calls, 'Cancelled queued job never calls provider');
+$assert(count($readRequests()) === $calls, 'Cancelled queued job never calls provider');
 [$token, $state] = $run('cancel');
 $assert($state['status'] === GenerationRequests::STATUS_CANCELLED, 'Cancellation during provider work wins over late response');
 $reject(fn() => $plugin->generatedResults->get($token, $writer->id), 'Late cancelled response is discarded');
 [$token, $state] = $run('success', false, true);
 $assert($state['status'] === GenerationRequests::STATUS_FAILED, 'Redelivered running job fails without repeating provider work');
-$calls = count(file($root . '/provider-requests.jsonl'));
+$calls = count($readRequests());
 try {
     $permissions = array_values(array_diff($fixture['permissions']['writer'], [Plugin::PERMISSION_USE]));
     $app->getUserPermissions()->saveUserPermissions($writer->id, $permissions);
     [$token, $state] = $run('success');
     $assert($state['status'] === GenerationRequests::STATUS_FAILED && str_contains($state['error'], 'permission'), 'Worker rechecks revoked plugin permission');
-    $assert(count(file($root . '/provider-requests.jsonl')) === $calls, 'Permission-revoked job never calls provider');
+    $assert(count($readRequests()) === $calls, 'Permission-revoked job never calls provider');
 } finally {
     $app->getUserPermissions()->saveUserPermissions($writer->id, $fixture['permissions']['writer']);
 }

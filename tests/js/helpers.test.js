@@ -110,25 +110,17 @@ test('matchesNativeFieldName handles Craft 5 namespaced Matrix titles', () => {
 	assert.equal(matchesNativeFieldName('fields[content][titleText]', 'title'), false);
 });
 
-test('renderElementRequest supports Craft 4 and Craft 5', () => {
+test('renderElementRequest uses native Craft 5 element rendering', () => {
 	const input = {settings: {viewMode: 'thumbs', showActionMenu: true}};
-	assert.deepEqual(renderElementRequest(4, input, 12, 2), {
-		action: 'elements/get-element-html',
-		data: {elementId: 12, siteId: 2, thumbSize: 'thumbs'},
-	});
-
-	const craft5 = renderElementRequest(5, input, 12, 2);
-	assert.equal(craft5.action, 'app/render-elements');
-	assert.equal(craft5.data.elements[0].instances[0].ui, 'chip');
-	assert.equal(craft5.data.elements[0].instances[0].size, 'large');
+	const request = renderElementRequest(input, 12, 2);
+	assert.equal(request.action, 'app/render-elements');
+	assert.equal(request.data.elements[0].instances[0].ui, 'chip');
+	assert.equal(request.data.elements[0].instances[0].size, 'large');
 });
 
-test('extractRenderedElement reads both response formats', () => {
-	assert.equal(extractRenderedElement(4, {html: '<div>4</div>'}, 9), '<div>4</div>');
-	assert.equal(
-		extractRenderedElement(5, {elements: {9: ['<div>5</div>']}}, 9),
-		'<div>5</div>'
-	);
+test('extractRenderedElement requires the Craft 5 response format', () => {
+	assert.equal(extractRenderedElement({html: '<div>legacy</div>'}, 9), '');
+	assert.equal(extractRenderedElement({elements: {9: ['<div>5</div>']}}, 9), '<div>5</div>');
 });
 
 test('responsePayload unwraps Craft responses and rejects explicit failures', () => {

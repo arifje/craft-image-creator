@@ -14,7 +14,6 @@ use craft\elements\conditions\ElementCondition;
 use craft\elements\User;
 use craft\fields\Assets as AssetsField;
 use craft\helpers\Assets as AssetsHelper;
-use craft\helpers\ElementHelper;
 use craft\models\VolumeFolder;
 use RuntimeException;
 use Throwable;
@@ -159,9 +158,7 @@ final class AssetCreator extends Component
             throw new RuntimeException('The field owner could not be found. Save the element and try again.');
         }
 
-        // ElementInterface::getRootOwner() was added in Craft 4.12; the helper
-        // provides the same behavior across the full supported Craft 4 range.
-        $rootOwner = ElementHelper::rootElement($owner);
+        $rootOwner = $owner->getRootOwner();
         if (
             $rootOwner::isLocalized() &&
             Craft::$app->getIsMultiSite() &&
@@ -299,9 +296,7 @@ final class AssetCreator extends Component
             $asset = new Asset();
             $asset->tempFilePath = $assetTempPath;
             $asset->setFilename($assetFilename);
-            if (method_exists($asset, 'setMimeType')) {
-                $asset->setMimeType($result['mimeType']);
-            }
+            $asset->setMimeType($result['mimeType']);
             $asset->newFolderId = (int)$folder->id;
             $asset->setVolumeId($folder->volumeId);
             $asset->uploaderId = $userId;
@@ -318,9 +313,6 @@ final class AssetCreator extends Component
                     $asset->newFilename = $targetFilename;
                     $asset->newFolderId = (int)$resolvedTarget->folder->id;
                     $asset->setScenario(Asset::SCENARIO_MOVE);
-                    // Craft's PHPStan extension assumes this second save succeeds,
-                    // but volume adapters can still return a validation failure.
-                    // @phpstan-ignore-next-line
                     if (!$this->saveAsset($asset)) {
                         throw new RuntimeException($this->elementErrors($asset, 'The generated Asset could not be moved.'));
                     }
@@ -374,6 +366,7 @@ final class AssetCreator extends Component
         return $errors !== [] ? implode(' ', $errors) : $fallback;
     }
 
+    /** @phpstan-impure */
     private function saveAsset(Asset $asset): bool
     {
         return Craft::$app->getElements()->saveElement($asset);

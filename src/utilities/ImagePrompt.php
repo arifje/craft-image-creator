@@ -27,17 +27,9 @@ final class ImagePrompt extends Utility
     /**
      * Craft 5 utility icon.
      */
-    public static function icon(): ?string
+    public static function icon(): string
     {
         return dirname(__DIR__) . '/icon-mask.svg';
-    }
-
-    /**
-     * Craft 4 utility icon.
-     */
-    public static function iconPath(): ?string
-    {
-        return self::icon();
     }
 
     public static function contentHtml(): string

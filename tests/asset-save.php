@@ -4,19 +4,19 @@ declare(strict_types=1);
 
 // Dependency-free service regression: fake Craft persistence applies the final
 // volume and conflict-resolved filename, then the real save() checks its rules.
-namespace yii\base {
+namespace ImageCreatorTestDoubles\yii\base {
     class Component
     {
     }
 }
 
-namespace craft\base {
+namespace ImageCreatorTestDoubles\craft\base {
     interface ElementInterface
     {
     }
 }
 
-namespace craft\models {
+namespace ImageCreatorTestDoubles\craft\models {
     class VolumeFolder
     {
         public int $id = 1;
@@ -30,14 +30,14 @@ namespace craft\models {
     }
 }
 
-namespace craft\elements\conditions {
+namespace ImageCreatorTestDoubles\craft\elements\conditions {
     interface ElementConditionInterface
     {
-        public function matchElement($element): bool;
+        public function matchElement(\ImageCreatorTestDoubles\craft\elements\Asset $element): bool;
     }
 }
 
-namespace craft\elements {
+namespace ImageCreatorTestDoubles\craft\elements {
     class User
     {
         public function can(string $permission): bool
@@ -62,6 +62,10 @@ namespace craft\elements {
         public string $title;
         public string $scenario;
 
+        public function setMimeType(string $value): void
+        {
+        }
+
         public function setFilename(string $value): void
         {
             $this->filename = $value;
@@ -79,35 +83,27 @@ namespace craft\elements {
     }
 }
 
-namespace craft\fields {
+namespace ImageCreatorTestDoubles\craft\fields {
     class Assets
     {
         public string $uid = 'field';
         public bool $allowUploads = true;
         public bool $restrictFiles = false;
-        public static $condition;
+        public static ?\ImageCreatorTestDoubles\craft\elements\conditions\ElementConditionInterface $condition = null;
 
-        public function resolveDynamicPathToFolderId($owner): int
+        public function resolveDynamicPathToFolderId(\ImageCreatorTestDoubles\craft\base\ElementInterface $owner): int
         {
             return 1;
         }
 
-        public function getSelectionCondition()
+        public function getSelectionCondition(): ?\ImageCreatorTestDoubles\craft\elements\conditions\ElementConditionInterface
         {
             return self::$condition;
         }
     }
 }
 
-namespace craft\helpers {
-    class ElementHelper
-    {
-        public static function rootElement($owner)
-        {
-            return $owner;
-        }
-    }
-
+namespace ImageCreatorTestDoubles\craft\helpers {
     class Assets
     {
         public static function filename2Title(string $value): string
@@ -122,32 +118,38 @@ namespace craft\helpers {
     }
 }
 
-namespace arifje\craftimagecreator {
+namespace ImageCreatorTestDoubles\arifje\craftimagecreator {
     class Plugin
     {
-        public static $instance;
+        public static object $instance;
 
-        public static function getInstance()
+        public static function getInstance(): object
         {
             return self::$instance;
         }
     }
 }
 
-namespace {
-    use arifje\craftimagecreator\Plugin;
+namespace ImageCreatorTestDoubles {
     use arifje\craftimagecreator\services\AssetCreator;
-    use craft\elements\Asset;
-    use craft\fields\Assets;
-    use craft\models\VolumeFolder;
+    use ImageCreatorTestDoubles\arifje\craftimagecreator\Plugin;
+    use ImageCreatorTestDoubles\craft\elements\Asset;
+    use ImageCreatorTestDoubles\craft\fields\Assets;
+    use ImageCreatorTestDoubles\craft\models\VolumeFolder;
+    use RuntimeException;
 
     class Craft
     {
-        public static $app;
+        public static object $app;
     }
 
-    class TestOwner implements \craft\base\ElementInterface
+    class TestOwner implements \ImageCreatorTestDoubles\craft\base\ElementInterface
     {
+        public function getRootOwner(): self
+        {
+            return $this;
+        }
+
         public static function isLocalized(): bool
         {
             return false;
@@ -156,6 +158,7 @@ namespace {
         public function getFieldLayout(): object
         {
             return new class() {
+                /** @return list<Assets> */
                 public function getCustomFields(): array
                 {
                     return [new Assets()];
@@ -174,21 +177,50 @@ namespace {
         }
     }
 
+    // Runtime aliases keep this dependency-free process isolated. Distinct
+    // double names let static analysis inspect the real Craft contracts too.
+    /** @param class-string $double */
+    $alias = static function(string $double, string $contract): void {
+        class_alias($double, $contract);
+    };
+    foreach ([
+        'yii\\base\\Component',
+        'craft\\base\\ElementInterface',
+        'craft\\models\\VolumeFolder',
+        'craft\\elements\\conditions\\ElementConditionInterface',
+        'craft\\elements\\User',
+        'craft\\elements\\Asset',
+        'craft\\fields\\Assets',
+        'craft\\helpers\\Assets',
+        'arifje\\craftimagecreator\\Plugin',
+        'Craft',
+    ] as $contract) {
+        $alias(__NAMESPACE__ . '\\' . $contract, $contract);
+    }
+
     require dirname(__DIR__) . '/src/models/AssetTarget.php';
     require dirname(__DIR__) . '/src/services/AssetCreator.php';
 
     $app = new class() {
+        /** @var list<Asset> */
         public array $saved = [];
+        /** @var list<int|null> */
         public array $deleted = [];
         public string $finalFilename = '';
+
+        /** @return list<Asset> */
+        public function savedAssets(): array
+        {
+            return $this->saved;
+        }
 
         public function getUser(): self
         {
             return $this;
         }
-        public function getIdentity(): \craft\elements\User
+        public function getIdentity(): \ImageCreatorTestDoubles\craft\elements\User
         {
-            return new \craft\elements\User();
+            return new \ImageCreatorTestDoubles\craft\elements\User();
         }
         public function getFields(): self
         {
@@ -206,7 +238,7 @@ namespace {
         {
             return new TestOwner();
         }
-        public function canSave($owner, $user): bool
+        public function canSave(\ImageCreatorTestDoubles\craft\base\ElementInterface $owner, \ImageCreatorTestDoubles\craft\elements\User $user): bool
         {
             return true;
         }
@@ -260,6 +292,9 @@ namespace {
         public function __construct(public string $path)
         {
         }
+        /** @param array<string, mixed> $binding
+         * @return array{extension: string, mimeType: string, path: string}
+         */
         public function get(string $token, int $userId, array $binding): array
         {
             return ['extension' => 'png', 'mimeType' => 'image/png', 'path' => $this->path];
@@ -294,8 +329,8 @@ namespace {
             $app->saved = $app->deleted = [];
             $app->finalFilename = $filename;
             $results->consumed = false;
-            Assets::$condition = new class() implements \craft\elements\conditions\ElementConditionInterface {
-                public function matchElement($element): bool
+            Assets::$condition = new class() implements \ImageCreatorTestDoubles\craft\elements\conditions\ElementConditionInterface {
+                public function matchElement(\ImageCreatorTestDoubles\craft\elements\Asset $element): bool
                 {
                     return $element->volumeId === 10 && $element->filename === 'editorial.png';
                 }
@@ -306,7 +341,7 @@ namespace {
             } catch (RuntimeException $exception) {
                 $assert(!$accepted && str_contains($exception->getMessage(), 'selection rules'), $exception->getMessage());
             }
-            $assert(count($app->saved) === 2, 'Rules ran before the final move.');
+            $assert(count($app->savedAssets()) === 2, 'Rules ran before the final move.');
             $assert($results->consumed === $accepted, 'Rejected preview must remain available for retry.');
             $assert($app->deleted === ($accepted ? [] : [42]), 'Rejected Asset was not deleted.');
             $assert(glob($path . '.asset-*') === [], 'Temporary Asset copy was not removed.');

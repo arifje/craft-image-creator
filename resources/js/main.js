@@ -5,7 +5,6 @@ import {installStandaloneCreator} from './standalone.js';
 import {installModelSettings} from './model-settings.js';
 
 const config = window.CraftImageCreatorConfig || {
-	craftMajorVersion: 4,
 	providers: [],
 	contextFields: [],
 	ratios: [],
@@ -17,7 +16,7 @@ function openModal(context) {
 		new ImageCreatorModal(
 			context,
 			config,
-			(modalContext, asset) => insertGeneratedAsset(modalContext, asset, config)
+			(modalContext, asset) => insertGeneratedAsset(modalContext, asset)
 		);
 	} catch (error) {
 		context.button.disabled = false;

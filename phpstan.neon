@@ -3,6 +3,9 @@ includes:
 
 parameters:
 	level: 8
+	bootstrapFiles:
+		- tests/analysis-bootstrap.php
 	paths:
 		- src
+		- tests
 	tmpDir: .phpstan

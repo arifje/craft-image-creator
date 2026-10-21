@@ -6,14 +6,16 @@ use craft\ecs\SetList;
 use Symplify\EasyCodingStandard\Config\ECSConfig;
 
 return static function(ECSConfig $ecsConfig): void {
+    $ecsConfig->parameters()->set('parallel', false);
+
     $ecsConfig->paths([
         __DIR__ . '/src',
         __DIR__ . '/tests',
         __FILE__,
     ]);
 
-    // Craft 4 is the minimum supported API and syntax baseline. Code formatted
-    // against this set remains compatible with Craft 5.
+    // The upstream preset name is historical; these are formatting rules only.
+    // Runtime support is exclusively Craft 5/PHP 8.2.
     $ecsConfig->sets([
         SetList::CRAFT_CMS_4,
     ]);

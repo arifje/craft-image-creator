@@ -108,7 +108,7 @@ final class GenerateImage extends BaseJob
         }
     }
 
-    protected function defaultDescription(): ?string
+    protected function defaultDescription(): string
     {
         return Translation::prep('craft-image-creator', 'Generating an AI image');
     }
