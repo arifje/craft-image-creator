@@ -26,6 +26,12 @@ final class AssetCreator extends Component
     /** @param array<string, mixed> $target */
     public function resolveTarget(array $target, ?User $user = null): AssetTarget
     {
+        foreach (['type', 'fieldUid', 'elementType', 'volumeUid', 'folderUid'] as $key) {
+            if (array_key_exists($key, $target) && !is_string($target[$key])) {
+                throw new RuntimeException('The Asset destination is invalid.');
+            }
+        }
+
         $user ??= Craft::$app->getUser()->getIdentity();
         if (!$user instanceof User) {
             throw new RuntimeException('A signed-in user is required to create an Asset.');

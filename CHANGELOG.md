@@ -1,5 +1,11 @@
 # Release Notes
 
+## 1.0.12 - 2026-10-21
+
+- Keeps Create with AI available when a single-relation Assets field is full, so editors can replace its selected image.
+- Rejects malformed request parameters with controlled validation errors and safely handles malformed Google image-response collections.
+- Adds native Craft 5 provider, queue, permissions, cancellation, preview/save, field replacement, and browser regressions.
+
 ## 1.0.11 - 2026-10-18
 
 - Fixes AI context extraction for Craft 5 field layout handle overrides by matching rendered fields by UID and their effective handles. Matrix context remains scoped to the nearest block, with parent fallback.

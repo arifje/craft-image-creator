@@ -87,9 +87,9 @@ final class CreatorController extends Controller
         $request = $this->request;
         $target = $this->arrayParam('target');
         $context = $this->contextParam($request->getBodyParam('context', []));
-        $provider = trim((string)$request->getRequiredBodyParam('provider'));
-        $ratio = trim((string)$request->getRequiredBodyParam('ratio'));
-        $extraContext = trim((string)$request->getBodyParam('extraContext', ''));
+        $provider = $this->stringParam('provider');
+        $ratio = $this->stringParam('ratio');
+        $extraContext = $this->stringParam('extraContext', '');
         $userId = (int)Craft::$app->getUser()->getId();
         $token = null;
 
@@ -135,7 +135,7 @@ final class CreatorController extends Controller
 
     public function actionStatus(): Response
     {
-        $token = trim((string)$this->request->getRequiredBodyParam('token'));
+        $token = $this->stringParam('token');
         $userId = (int)Craft::$app->getUser()->getId();
 
         try {
@@ -183,9 +183,8 @@ final class CreatorController extends Controller
 
     public function actionSave(): Response
     {
-        $request = $this->request;
-        $token = trim((string)$request->getRequiredBodyParam('token'));
-        $filename = trim((string)$request->getBodyParam('filename', ''));
+        $token = $this->stringParam('token');
+        $filename = $this->stringParam('filename', '');
         $target = $this->arrayParam('target');
         $userId = (int)Craft::$app->getUser()->getId();
 
@@ -219,7 +218,7 @@ final class CreatorController extends Controller
 
     public function actionCancel(): Response
     {
-        $token = trim((string)$this->request->getRequiredBodyParam('token'));
+        $token = $this->stringParam('token');
         $userId = (int)Craft::$app->getUser()->getId();
         try {
             Plugin::getInstance()->generationRequests->cancel($token, $userId);
@@ -262,6 +261,18 @@ final class CreatorController extends Controller
         $response->content = $contents;
 
         return $response;
+    }
+
+    private function stringParam(string $name, ?string $default = null): string
+    {
+        $value = $default === null
+            ? $this->request->getRequiredBodyParam($name)
+            : $this->request->getBodyParam($name, $default);
+        if (!is_string($value)) {
+            throw new BadRequestHttpException("The {$name} data is invalid.");
+        }
+
+        return trim($value);
     }
 
     /** @return array<string, mixed> */

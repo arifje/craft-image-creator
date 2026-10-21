@@ -222,6 +222,8 @@ Run `php tests/preview-request.php /path/to/craft/bootstrap.php` to verify previ
 
 Run `php tests/context-fields.php /path/to/craft/bootstrap.php` in the Craft 5 test environment to verify that input events emit the effective layout handle with the stable field UID. The fixture is in memory and does not write database records.
 
+The opt-in native audit harnesses `tests/craft-runtime-smoke.php` and `tests/browser/craft-audit.cjs` exercise providers through mocks, targeted queue jobs, permissions, cancellation, preview/save, and native field replacement. They require the isolated fixture described in [the Craft 5 audit report](docs/audit-2026-10-20.md) and deliberately reject other sites/databases. They must not run against a shared or production site.
+
 For the browser context regression, open `tests/browser/context.html` through a local web server (or a headless browser with local module access). The result must report `PASS`; the test exercises overridden handles, Matrix scope and parent fallback, empty and missing fields, hostile title/textarea markup, and rich-text extraction without contacting providers.
 
 The compiled control-panel assets are part of the Composer package. Run the production build and commit the generated bundle whenever its source changes.

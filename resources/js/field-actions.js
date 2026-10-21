@@ -63,7 +63,8 @@ function fieldCapacity(input) {
 function createButton(context, container, openModal) {
 	const button = document.createElement('button');
 	button.type = 'button';
-	button.className = 'btn dashed add icon craft-image-creator-field-button';
+	button.className = 'btn dashed craft-image-creator-field-button';
+	button.setAttribute('data-icon', 'plus');
 	button.textContent = translate('Create with AI');
 	button.addEventListener('click', (event) => {
 		event.preventDefault();
@@ -115,12 +116,8 @@ function attachButton(context, openModal) {
 		return;
 	}
 
-	const controls = container.querySelector(':scope > .flex');
-	if (!controls) {
-		return;
-	}
-
-	const existingButton = controls.querySelector(':scope > .craft-image-creator-field-button');
+	let controls = container.querySelector(':scope > .craft-image-creator-field-actions');
+	const existingButton = controls?.querySelector(':scope > .craft-image-creator-field-button');
 	const input = assetInput(container);
 	if (input?.settings?.allowAdd === false) {
 		existingButton?.remove();
@@ -130,9 +127,15 @@ function attachButton(context, openModal) {
 		return;
 	}
 
+	if (!controls) {
+		// Craft hides its native upload/add controls at the relation limit. Our
+		// single-relation replacement action must remain available there.
+		controls = document.createElement('div');
+		controls.className = 'craft-image-creator-field-actions';
+		container.appendChild(controls);
+	}
 	const button = createButton(context, container, openModal);
-	const spinner = controls.querySelector(':scope > .spinner');
-	controls.insertBefore(button, spinner);
+	controls.appendChild(button);
 }
 
 function scan(openModal) {

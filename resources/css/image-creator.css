@@ -3,6 +3,10 @@
 	white-space: nowrap;
 }
 
+.craft-image-creator-field-actions {
+	margin-block-start: 10px;
+}
+
 .craft-image-creator-model-refresh {
 	display: flex;
 	align-items: center;

@@ -1,0 +1,110 @@
+// Opt-in end-to-end audit. Requires the guarded private Craft site and mocks.
+const {chromium} = require(process.env.IC_BROWSER_DRIVER || 'playwright');
+const fs = require('node:fs');
+const assert = require('node:assert/strict');
+const {execFileSync} = require('node:child_process');
+const root = '/tmp/image-creator-audit-20261020';
+if (process.env.IC_AUDIT_ROOT !== root) throw new Error('Set the isolated IC_AUDIT_ROOT.');
+const fixture = JSON.parse(fs.readFileSync(root + '/fixture.json'));
+const base = 'http://127.0.0.1:8421';
+let checks = 0;
+const equal = (actual, expected, message) => { assert.equal(actual, expected, message); checks++; console.log('PASS:', message); };
+(async () => {
+  const browser = await chromium.launch({executablePath:'/usr/bin/chromium', headless:true, args:['--no-sandbox']});
+  const pages = {};
+  const errors = [];
+  const login = async role => {
+    const context = await browser.newContext({viewport:{width:1300,height:950}});
+    await context.route('**/*', route => new URL(route.request().url()).origin === base ? route.continue() : route.abort());
+    const page = await context.newPage(); page.setDefaultTimeout(12000);
+    page.on('pageerror', error=>errors.push(role+': '+error.message));
+    const response = await page.goto(base+'/admin/login');
+    equal(response.headers()['x-image-creator-audit'],'image_creator_audit_20261020',role+' is on guarded audit site');
+    await page.locator('input[name="username"]').first().fill('ic-audit-'+role+'@example.invalid');
+    await page.locator('input[name="password"]').fill(fixture.password);
+    await page.locator('button[type="submit"],input[type="submit"]').first().click();
+    await page.waitForURL(url=>!url.pathname.endsWith('/login'));
+    return pages[role]=page;
+  };
+  const action = async (page,name,data={},method='POST',csrf=true) => page.evaluate(async ({name,data,method,csrf})=>{
+    const headers={Accept:'application/json','Content-Type':'application/json'};
+    if(csrf)headers['X-CSRF-Token']=Craft.csrfTokenValue;
+    const response=await fetch('/admin/actions/craft-image-creator/'+name,{method,headers,...(method==='GET'?{}:{body:JSON.stringify(data)})});
+    const text=await response.text();let body;try{body=JSON.parse(text)}catch{body={text:text.slice(0,200)}}return {status:response.status,body};
+  },{name,data,method,csrf});
+  const generate = page => action(page,'creator/generate',{provider:'openai',ratio:'1:1',context:[],target:{type:'standalone'}});
+  const run = token => execFileSync('php',[root+'/run-job.php',token],{encoding:'utf8'});
+  try {
+    fs.writeFileSync(root+'/mock-mode','success');
+    const writer=await login('writer');const denied=await login('denied');const reader=await login('reader');const admin=await login('admin');const prompt=await login('prompt');
+    for(const name of ['generate','status','save','cancel','discard'])equal((await action(denied,'creator/'+name,{})).status,403,'plugin permission guards '+name);
+    equal((await denied.goto(base+'/admin/image-creator-ai')).status(),403,'plugin permission guards standalone page');
+    equal((await denied.goto(base+'/admin/image-creator-ai/api/preview?imageCreatorToken='+ 'a'.repeat(64))).status(),403,'plugin permission guards preview');
+    equal((await action(writer,'creator/generate',{},'GET')).status,405,'generation rejects GET');
+    equal((await action(writer,'creator/generate',{},'POST',false)).status,400,'generation rejects missing CSRF');
+    equal((await action(writer,'model-catalog/models',{provider:'openai'})).status,403,'model discovery requires admin');
+    equal((await action(admin,'model-catalog/models',{provider:'openai',refresh:true})).status,200,'admin model discovery uses mock');
+    equal((await generate(reader)).status,403,'read-only user cannot generate into writable storage');
+    for(const key of ['provider','ratio','extraContext'])equal((await action(writer,'creator/generate',{provider:'openai',ratio:'1:1',context:[],target:{type:'standalone'},[key]:[]})).status,400,'array '+key+' is a controlled bad request');
+    for(const name of ['status','cancel','discard','save'])equal((await action(writer,'creator/'+name,{token:[],target:{type:'standalone'}})).status,400,'array token rejected by '+name);
+    equal((await action(writer,'creator/generate',{provider:'openai',ratio:'1:1',context:[],target:{type:[]}})).status,400,'malformed target type is a controlled bad request');
+    equal((await action(writer,'creator/save',{token:'a'.repeat(64),filename:[],target:{type:'standalone'}})).status,400,'array filename is a controlled bad request');
+    const queued=await generate(writer);equal(queued.status,200,'native generation enqueues request');const token=queued.body.generation.token;
+    equal((await action(writer,'creator/status',{token})).body.generation.status,'queued','native status starts queued');
+    equal((await action(reader,'creator/status',{token})).status,400,'another user cannot poll request');
+    equal((await action(reader,'creator/cancel',{token})).status,200,'foreign cancellation is harmless');
+    equal((await action(writer,'creator/status',{token})).body.generation.status,'queued','foreign cancellation preserves owner request');
+    run(token);const complete=await action(writer,'creator/status',{token});equal(complete.body.generation.status,'complete','targeted native worker completes request');
+    const previewPath=new URL(complete.body.result.previewUrl).pathname+new URL(complete.body.result.previewUrl).search;
+    equal((await writer.request.get(base+previewPath)).status(),200,'native preview streams image');equal((await reader.request.get(base+previewPath)).status(),400,'native preview rejects another user');
+    equal((await action(writer,'creator/save',{token,target:{type:'standalone'},filename:'http-audit.jpg'})).status,200,'native save persists private asset');
+    equal((await action(writer,'creator/save',{token,target:{type:'standalone'},filename:'duplicate.jpg'})).status,400,'native duplicate save rejected');
+    equal((await action(writer,'prompt/save',{prompt:'Unauthorized prompt'})).status,403,'creator permission cannot edit prompt');
+    equal((await action(prompt,'prompt/save',{prompt:'Audit native stored prompt'})).status,200,'separate prompt utility permission can save');
+    const utility=await prompt.goto(base+'/admin/utilities/image-creator-prompt');equal(utility.status(),200,'native prompt utility renders');equal(await prompt.locator('textarea[name="prompt"]').inputValue(),'Audit native stored prompt','prompt persists after reload');
+    equal((await admin.goto(base+'/admin/settings/plugins/craft-image-creator')).status(),200,'native plugin settings renders');
+    equal(await admin.locator('#tabs a').count(),4,'settings has four native tabs');
+    await admin.screenshot({path:root+'/native-settings.png',fullPage:true});
+    await writer.goto(base+'/admin/image-creator-ai');await writer.locator('#craft-image-creator-open').click();
+    let delayedToken;let releaseResponse;let queuedSignal;
+    const queuedResponse=new Promise(resolve=>queuedSignal=resolve);
+    const delayGenerate=async route=>{
+      if(!decodeURIComponent(route.request().url()).includes('creator/generate')||route.request().method()!=='POST')return route.fallback();
+      const response=await route.fetch();delayedToken=(await response.json()).generation.token;queuedSignal();
+      await new Promise(resolve=>releaseResponse=resolve);await route.fulfill({response});
+    };
+    await writer.route('**/*',delayGenerate);
+    const modal=writer.locator('.craft-image-creator-modal:visible');await modal.getByRole('button',{name:'Generate image',exact:true}).click();await queuedResponse;
+    await modal.getByRole('button',{name:'Reset',exact:true}).click();
+    equal(await modal.getByRole('button',{name:'Generate image',exact:true}).isEnabled(),true,'Reset interrupts queued generation');
+    releaseResponse();await writer.waitForTimeout(150);await writer.unroute('**/*',delayGenerate);
+    equal((await action(writer,'creator/status',{token:delayedToken})).body.generation.status,'cancelled','late enqueue response is cancelled after Reset');
+    await modal.getByRole('button',{name:'Close',exact:true}).last().click();await writer.waitForFunction(()=>!document.querySelector('.craft-image-creator-modal'));
+    equal(await writer.locator('#craft-image-creator-open').isEnabled(),true,'Close releases modal trigger');
+    // Actual UI enqueue/status/preview/save, with only the worker invoked by this harness.
+    await writer.locator('#craft-image-creator-open').click();const next=writer.waitForResponse(r=>decodeURIComponent(r.url()).includes('creator/generate')&&r.request().method()==='POST');
+    await writer.locator('.craft-image-creator-modal').getByRole('button',{name:'Generate image',exact:true}).click();const generated=await (await next).json();run(generated.generation.token);
+    await writer.locator('.craft-image-creator-modal').getByRole('button',{name:'Save Asset',exact:true}).waitFor({state:'visible'});
+    await writer.waitForFunction(()=>!document.querySelector('.craft-image-creator-modal__actions button:nth-child(2)').disabled);
+    await writer.screenshot({path:root+'/native-preview.png',fullPage:true});
+    await writer.locator('.craft-image-creator-modal').getByRole('button',{name:'Save Asset',exact:true}).click();
+    await writer.locator('.craft-image-creator-standalone__saved:not([hidden])').waitFor();await writer.waitForFunction(()=>!document.querySelector('.craft-image-creator-modal'));equal(await writer.locator('.craft-image-creator-modal').count(),0,'native modal saves and closes');
+    // Field creation uses the real Craft relation input and native element save.
+    const entryPath=new URL(fixture.entryUrl).pathname;await writer.goto(base+entryPath);await writer.locator('.craft-image-creator-field-button').waitFor();
+    const originalAsset=await writer.locator('.elementselect .element[data-kind="image"]').first().getAttribute('data-id');
+    equal(await writer.locator('.craft-image-creator-field-actions button').isVisible(),true,'AI replacement action stays visible when native field controls are hidden');
+    await writer.locator('.craft-image-creator-field-button').click();equal(await writer.locator('.craft-image-creator-modal input[id$="context-1"]').inputValue(),'Audit caption before generation','native layout override reads context');
+    const fieldResponse=writer.waitForResponse(r=>decodeURIComponent(r.url()).includes('creator/generate')&&r.request().method()==='POST');await writer.locator('.craft-image-creator-modal').getByRole('button',{name:'Generate image',exact:true}).click();run((await(await fieldResponse).json()).generation.token);
+    await writer.waitForFunction(()=>!document.querySelector('.craft-image-creator-modal__actions button:nth-child(2)').disabled);await writer.locator('.craft-image-creator-modal').getByRole('button',{name:'Add to field',exact:true}).click();
+    await writer.waitForFunction(()=>!document.querySelector('.craft-image-creator-modal'));equal(await writer.locator('.elementselect .element[data-kind="image"]').count(),1,'native AssetSelectInput receives generated relation');
+    assert.notEqual(await writer.locator('.elementselect .element[data-kind="image"]').first().getAttribute('data-id'),originalAsset);checks++;console.log('PASS: filled single-relation field replaces its selected relation');
+    await writer.getByRole('button',{name:'Save',exact:true}).click();await writer.waitForTimeout(1000);await writer.goto(base+entryPath);await writer.locator('.craft-image-creator-field-button').waitFor();equal(await writer.locator('.elementselect .element[data-kind="image"]').count(),1,'native entry Save/reload preserves generated relation');await writer.screenshot({path:root+'/native-entry-saved.png',fullPage:true});
+    await writer.setViewportSize({width:390,height:844});await writer.goto(base+'/admin/image-creator-ai');await writer.locator('#craft-image-creator-open').click();await writer.locator('.craft-image-creator-modal').waitFor({state:'visible'});
+    await writer.waitForFunction(()=>Number(getComputedStyle(document.querySelector('.craft-image-creator-modal')).opacity)>=0.99);
+    const mobile=await writer.locator('.craft-image-creator-modal').boundingBox();equal(mobile.x>=0 && mobile.x+mobile.width<=391,true,'native modal fits a 390px viewport');await writer.screenshot({path:root+'/native-modal-390.png',fullPage:true});await writer.locator('.craft-image-creator-modal').getByRole('button',{name:'Close',exact:true}).last().click();
+    await admin.goto(base+'/tests/browser/context.html');await admin.waitForFunction(()=>document.querySelector('#result')?.textContent.startsWith('PASS'));
+    equal((await admin.locator('#result').textContent()).startsWith('PASS'),true,'existing browser context fixture covers Matrix, overrides and inert markup');
+    equal(errors.length,0,'native flows have no browser JavaScript errors');fs.writeFileSync(root+'/browser-errors.json',JSON.stringify(errors));console.log(`Native HTTP/browser: ${checks} checks passed.`);
+  } catch(error) { for(const [role,page] of Object.entries(pages)){await page.screenshot({path:root+'/failure-'+role+'.png',fullPage:true}).catch(()=>{});fs.writeFileSync(root+'/failure-'+role+'.html',await page.content());}console.error('Browser errors:',errors);throw error; }
+  finally {await browser.close();}
+})().catch(error=>{console.error(error);process.exitCode=1;});

@@ -40,11 +40,13 @@ final class GoogleProvider extends AbstractProvider
             'Google Gemini'
         );
 
-        foreach ($data['steps'] ?? [] as $step) {
+        $steps = $data['steps'] ?? [];
+        foreach (is_array($steps) ? $steps : [] as $step) {
             if (!is_array($step) || ($step['type'] ?? '') !== 'model_output') {
                 continue;
             }
-            foreach ($step['content'] ?? [] as $content) {
+            $contents = $step['content'] ?? [];
+            foreach (is_array($contents) ? $contents : [] as $content) {
                 if (!is_array($content) || ($content['type'] ?? '') !== 'image') {
                     continue;
                 }
