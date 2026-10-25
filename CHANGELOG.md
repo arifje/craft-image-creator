@@ -1,6 +1,6 @@
 # Release Notes
 
-## Unreleased
+## 2.1.0 - 2026-10-25
 
 - Adds MCP tools when Craft MCP Tools is installed, so an AI agent can do what Create with AI does: `ai_image_options` lists providers, ratios, context fields and destinations, `ai_image_generate` queues an image from an entry's context, and `ai_image_result` saves the finished image as an asset.
 - Adds `ContextFields::valuesFromElement()`, which reads the configured context fields from a saved element as plain text on the server.
