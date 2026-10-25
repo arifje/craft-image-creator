@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace arifje\craftimagecreator;
 
 use arifje\craftimagecreator\models\Settings;
+use arifje\craftimagecreator\mcp\ImageTools;
 use arifje\craftimagecreator\services\AssetCreator;
 use arifje\craftimagecreator\services\ContextFields;
 use arifje\craftimagecreator\services\GeneratedResults;
 use arifje\craftimagecreator\services\GenerationRequests;
+use arifje\craftimagecreator\services\Generations;
 use arifje\craftimagecreator\services\ImageGenerator;
 use arifje\craftimagecreator\services\ModelCatalog;
 use arifje\craftimagecreator\services\Prompts;
@@ -42,6 +44,7 @@ use yii\base\Event;
  * @property-read ContextFields $contextFields
  * @property-read GenerationRequests $generationRequests
  * @property-read GeneratedResults $generatedResults
+ * @property-read Generations $generations
  * @property-read ImageGenerator $imageGenerator
  * @property-read ModelCatalog $modelCatalog
  * @property-read Prompts $prompts
@@ -64,6 +67,7 @@ final class Plugin extends BasePlugin
                 'contextFields' => ContextFields::class,
                 'generationRequests' => GenerationRequests::class,
                 'generatedResults' => GeneratedResults::class,
+                'generations' => Generations::class,
                 'imageGenerator' => ImageGenerator::class,
                 'modelCatalog' => ModelCatalog::class,
                 'prompts' => Prompts::class,
@@ -79,9 +83,26 @@ final class Plugin extends BasePlugin
         $this->registerCpRoutes();
         $this->registerPermissions();
         $this->registerUtilities();
+        $this->registerMcpTools();
 
         Craft::$app->onInit(function(): void {
             $this->registerFieldActions();
+        });
+    }
+
+    /**
+     * Offer Create with AI as MCP tools when Craft MCP Tools is installed.
+     * The class check keeps this plugin working without it.
+     */
+    private function registerMcpTools(): void
+    {
+        $mcp = 'arifje\\mcptools\\Mcp';
+        if (!class_exists($mcp)) {
+            return;
+        }
+
+        Event::on($mcp, $mcp::EVENT_REGISTER_TOOLS, static function($event): void {
+            $event->addTool(ImageTools::class, 'craft-image-creator');
         });
     }
 

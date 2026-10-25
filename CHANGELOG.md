@@ -1,5 +1,11 @@
 # Release Notes
 
+## Unreleased
+
+- Adds MCP tools when Craft MCP Tools is installed, so an AI agent can do what Create with AI does: `ai_image_options` lists providers, ratios, context fields and destinations, `ai_image_generate` queues an image from an entry's context, and `ai_image_result` saves the finished image as an asset.
+- Adds `ContextFields::valuesFromElement()`, which reads the configured context fields from a saved element as plain text on the server.
+- Moves queueing, status, saving and cancelling of a generation into a `generations` service that the Create with AI endpoints and the MCP tools share.
+
 ## 2.0.0 - 2026-10-21
 
 - **Breaking:** requires Craft CMS 5.11.0 or later within Craft 5 and PHP 8.2 or later within PHP 8. Craft 4 projects must stay on 1.x until the application is upgraded.

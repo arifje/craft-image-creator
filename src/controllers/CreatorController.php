@@ -4,12 +4,10 @@ declare(strict_types=1);
 
 namespace arifje\craftimagecreator\controllers;
 
-use arifje\craftimagecreator\jobs\GenerateImage;
 use arifje\craftimagecreator\Plugin;
 use arifje\craftimagecreator\services\GenerationRequests;
 use Craft;
 use craft\elements\Asset;
-use craft\helpers\Queue;
 use craft\helpers\UrlHelper;
 use craft\web\Controller;
 use RuntimeException;
@@ -91,35 +89,14 @@ final class CreatorController extends Controller
         $ratio = $this->stringParam('ratio');
         $extraContext = $this->stringParam('extraContext', '');
         $userId = (int)Craft::$app->getUser()->getId();
-        $token = null;
 
         try {
-            $resolvedTarget = Plugin::getInstance()->assetCreator->resolveTarget($target);
-            $prompt = Plugin::getInstance()->imageGenerator->preparePrompt(
-                $provider,
-                $ratio,
-                $context,
-                $extraContext
-            );
-            $token = Plugin::getInstance()->generationRequests->create($userId);
-            $jobId = Queue::push(new GenerateImage([
-                'token' => $token,
-                'userId' => $userId,
-                'provider' => $provider,
-                'ratio' => $ratio,
-                'prompt' => $prompt,
-                'target' => $resolvedTarget->binding(),
-            ]), null, null, 300);
-            if ($jobId === null) {
-                throw new RuntimeException('Could not add the image generation request to the queue.');
-            }
+            $token = Plugin::getInstance()->generations->queue($userId, $provider, $ratio, $context, $extraContext, $target);
         } catch (ForbiddenHttpException $exception) {
             throw $exception;
         } catch (RuntimeException $exception) {
-            $this->cancelGeneration($token, $userId);
             throw new BadRequestHttpException($exception->getMessage(), 0, $exception);
         } catch (Throwable $exception) {
-            $this->cancelGeneration($token, $userId);
             Craft::$app->getErrorHandler()->logException($exception);
             throw new BadRequestHttpException('The image generation request could not be queued.', 0, $exception);
         }
@@ -139,40 +116,25 @@ final class CreatorController extends Controller
         $userId = (int)Craft::$app->getUser()->getId();
 
         try {
-            $generation = Plugin::getInstance()->generationRequests->get($token, $userId);
+            $status = Plugin::getInstance()->generations->status($token, $userId);
         } catch (RuntimeException $exception) {
             throw new BadRequestHttpException($exception->getMessage(), 0, $exception);
         }
 
-        $status = (string)$generation['status'];
         $payload = [
             'success' => true,
-            'generation' => [
+            'generation' => array_filter([
                 'token' => $token,
-                'status' => $status,
-            ],
+                'status' => $status['status'],
+                'error' => $status['error'] ?? null,
+            ], static fn(mixed $value): bool => $value !== null),
         ];
-        if ($status === GenerationRequests::STATUS_COMPLETE) {
-            try {
-                $result = Plugin::getInstance()->generatedResults->get($token, $userId);
-                $payload['result'] = [
-                    'token' => $token,
-                    'mimeType' => $result['mimeType'],
-                    'extension' => $result['extension'],
-                    'width' => $result['width'],
-                    'height' => $result['height'],
-                    'previewUrl' => UrlHelper::cpUrl('image-creator-ai/api/preview', [
-                        'imageCreatorToken' => $token,
-                    ]),
-                ];
-            } catch (RuntimeException) {
-                $payload['generation']['status'] = GenerationRequests::STATUS_FAILED;
-                $payload['generation']['error'] = 'The image generation request expired. Generate it again.';
-            }
-        } elseif ($status === GenerationRequests::STATUS_FAILED) {
-            $payload['generation']['error'] = (string)$generation['error'];
-        } elseif ($status === GenerationRequests::STATUS_CANCELLED) {
-            $payload['generation']['error'] = 'Image generation was cancelled.';
+        if (isset($status['result'])) {
+            $payload['result'] = ['token' => $token] + $status['result'] + [
+                'previewUrl' => UrlHelper::cpUrl('image-creator-ai/api/preview', [
+                    'imageCreatorToken' => $token,
+                ]),
+            ];
         }
 
         $response = $this->asJson($payload);
@@ -189,7 +151,7 @@ final class CreatorController extends Controller
         $userId = (int)Craft::$app->getUser()->getId();
 
         try {
-            $asset = Plugin::getInstance()->assetCreator->save($token, $userId, $target, $filename);
+            $asset = Plugin::getInstance()->generations->save($token, $userId, $target, $filename);
         } catch (ForbiddenHttpException $exception) {
             throw $exception;
         } catch (RuntimeException $exception) {
@@ -197,12 +159,6 @@ final class CreatorController extends Controller
         } catch (Throwable $exception) {
             Craft::$app->getErrorHandler()->logException($exception);
             throw new BadRequestHttpException('The generated image could not be saved as an Asset.', 0, $exception);
-        }
-
-        try {
-            Plugin::getInstance()->generationRequests->consume($token, $userId);
-        } catch (Throwable $exception) {
-            Craft::$app->getErrorHandler()->logException($exception);
         }
 
         return $this->asJson([
@@ -307,20 +263,6 @@ final class CreatorController extends Controller
         }
 
         return $context;
-    }
-
-    private function cancelGeneration(?string $token, int $userId): void
-    {
-        if ($token === null || $token === '') {
-            return;
-        }
-
-        try {
-            Plugin::getInstance()->generationRequests->cancel($token, $userId);
-            Plugin::getInstance()->generatedResults->discardIfExists($token, $userId);
-        } catch (Throwable $exception) {
-            Craft::$app->getErrorHandler()->logException($exception);
-        }
     }
 
     /**

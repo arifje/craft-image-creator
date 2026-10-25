@@ -154,6 +154,16 @@ The generated file is saved immediately as a new Craft Asset in the Assets field
 
 For an Assets field with a relation limit of one, adding a generated image replaces the relation shown in the input; it does not overwrite or delete the previously related Asset.
 
+## MCP tools
+
+With [Craft MCP Tools](https://github.com/arifje/craft-mcp-tools) installed, an AI agent can use Create with AI:
+
+- `ai_image_options` (read only): the configured providers and models, the ratios, the context fields and the Assets fields images may be saved into.
+- `ai_image_generate`: queues one image. With `entryId` and `field`, the prompt uses that entry's context fields, read on the server from the saved entry (or draft), and the image is meant for the field's upload folder; without them it goes to the standalone volume. `extraContext` adds direction, and `context` overrides individual values. Returns a token.
+- `ai_image_result`: reports the status, and once complete saves the image as an asset and returns its id and natural key, which the agent adds to the entry with `update_entry`. `discard: true` cancels instead.
+
+The tools act as the token's Craft user, who needs *Create images with AI*; the target checks are the same as in the modal. `ai_image_generate` and `ai_image_result` are offered to `content` and `full` tokens with the Upload capability, only while `enableDangerousTools` is on, and need a token connection (not stdio). Each generation is a paid provider request, and the queue must be running (see below).
+
 ## Queue processing
 
 Provider generation runs as a Craft queue job. The modal remains open and polls the user-bound request until the preview is ready; saving the approved preview as an Asset remains synchronous. This keeps slow provider requests out of control-panel web requests. The combined prompt is prepared and stored with the queued request, so a later Utilities edit affects only requests submitted after the change.

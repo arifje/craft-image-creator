@@ -6,10 +6,15 @@ namespace arifje\craftimagecreator\services;
 
 use arifje\craftimagecreator\Plugin;
 use Craft;
+use craft\base\ElementInterface;
 use craft\base\Field;
+use craft\elements\db\ElementQueryInterface;
 use craft\fields\Assets;
 use craft\fields\Categories;
+use craft\fields\data\OptionData;
+use craft\fields\data\SingleOptionFieldData;
 use craft\fields\Matrix;
+use Stringable;
 use yii\base\Component;
 
 final class ContextFields extends Component
@@ -83,6 +88,74 @@ final class ContextFields extends Component
         }
 
         return $definitions;
+    }
+
+    /**
+     * The configured context values read from a saved element, as plain text,
+     * keyed like getConfiguredDefinitions(). This is the server-side version
+     * of what the modal reads from the edit form: rich text without markup,
+     * option labels, Yes/No for lightswitches and titles for relations. A
+     * context field that is not on the element's layout is empty.
+     *
+     * @return array<string, string>
+     */
+    public function valuesFromElement(ElementInterface $element): array
+    {
+        $layoutFields = [];
+        foreach ($element->getFieldLayout()?->getCustomFields() ?? [] as $layoutField) {
+            $layoutFields[(string)$layoutField->uid] ??= $layoutField;
+        }
+
+        $values = [];
+        foreach ($this->getConfiguredDefinitions() as $definition) {
+            $key = $definition['key'];
+            if ($definition['native']) {
+                $values[$key] = $this->plainText($element->{$definition['handle']} ?? '');
+                continue;
+            }
+
+            $uid = substr($key, 6);
+            $layoutField = $layoutFields[$uid] ?? null;
+            $values[$key] = $layoutField === null ? '' : $this->plainText($element->getFieldValue((string)$layoutField->handle));
+        }
+
+        return $values;
+    }
+
+    private function plainText(mixed $value): string
+    {
+        if ($value === null) {
+            return '';
+        }
+        if (is_bool($value)) {
+            return $value ? 'Yes' : 'No';
+        }
+        if ($value instanceof ElementQueryInterface) {
+            $value = (clone $value)->status(null)->limit(50)->all();
+        }
+        if ($value instanceof SingleOptionFieldData) {
+            return (string)($value->label ?? $value->value ?? '');
+        }
+        if (is_iterable($value)) {
+            $parts = [];
+            foreach ($value as $item) {
+                $text = $item instanceof ElementInterface
+                    ? (string)($item->title ?? $item)
+                    : $this->plainText($item instanceof OptionData ? $item->label : $item);
+                if ($text !== '') {
+                    $parts[] = $text;
+                }
+            }
+
+            return implode(', ', $parts);
+        }
+        if (is_scalar($value) || $value instanceof Stringable) {
+            $text = html_entity_decode(strip_tags((string)$value), ENT_QUOTES | ENT_HTML5);
+
+            return trim(preg_replace('/\s+/u', ' ', $text) ?? $text);
+        }
+
+        return '';
     }
 
     /** @return Field[] */

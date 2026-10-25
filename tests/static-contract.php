@@ -142,6 +142,7 @@ $assert(
 );
 
 $controllerSource = $read($root . '/src/controllers/CreatorController.php');
+$generationsSource = $read($root . '/src/services/Generations.php');
 $jobSource = $read($root . '/src/jobs/GenerateImage.php');
 $requestSource = $read($root . '/src/services/GenerationRequests.php');
 $abstractProviderSource = $read($root . '/src/services/providers/AbstractProvider.php');
@@ -212,7 +213,7 @@ $assert(
 );
 
 $assert(str_contains($jobSource, 'extends BaseJob'), 'Image generation must run as a Craft queue job.');
-$assert(str_contains($controllerSource, 'Queue::push('), 'Generation requests must be pushed to Craft’s queue.');
+$assert(str_contains($generationsSource, 'Queue::push('), 'Generation requests must be pushed to Craft’s queue.');
 $assert(
     str_contains($controllerSource, 'actionStatus()') && str_contains($pluginSource, "api/status"),
     'Queued generation must expose a polling endpoint.'
@@ -253,7 +254,7 @@ $assert(
     'Provider error parsing and credential redaction must have focused regression checks.'
 );
 $assert(
-    str_contains($controllerSource, "\$payload['generation']['error'] = (string)\$generation['error']") &&
+    str_contains($generationsSource, "\$payload['error'] = (string)\$generation['error']") &&
     str_contains($modalSource, 'throw new Error(state.error ||') &&
     str_contains($modalSource, 'this.setError(requestErrorMessage(') &&
     str_contains($modalSource, 'this.error.textContent = message'),
